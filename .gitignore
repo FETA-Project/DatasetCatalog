@@ -1,0 +1,12 @@
+venv/
+upload/
+frontend/node_modules
+frontend/*.log*
+frontend/.nuxt
+frontend/.nitro
+frontend/.cache
+# frontent/.output
+frontend/.env
+# frontend/dist
+frontend/.DS_Store
+__pycache__/
