@@ -3,14 +3,14 @@
 </template>
 
 <script>
-    import { defineProps } from 'vue'
+    // import { defineProps } from 'vue'
 
-    const props = defineProps({
-        timedate: {
-            type: String,
-            required: true,
-        }
-    })
+    // const props = defineProps({
+    //     timedate: {
+    //         type: String,
+    //         required: true,
+    //     }
+    // })
 
     function formatDate(timedate) {
         const date = new Date(timedate);

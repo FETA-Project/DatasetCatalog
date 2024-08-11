@@ -2,7 +2,7 @@
     <div>
         <MainMenu />
         <h1>
-            Requests
+            Requested For Analysis
         </h1>
         <ConfirmDialog />
         <DataTable :value="requests" scrollable scrollHeight="500px" :filters="filters"
@@ -11,7 +11,7 @@
         <template #header>
             <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
                 <div>
-                    <Button label="Request analysis" icon="pi pi-ticket" class="mr-2" @click="showUpload" />
+                    <Button label="Submit Dataset" icon="pi pi-ticket" class="mr-2" @click="showUpload" />
                     <Button label="Approve" icon="pi pi-check" severity="success" class="mr-2"
                         @click="approveRequest()" :disabled="!selectedData || !selectedData.length"/>
                     <Button label="Reject" icon="pi pi-ban" severity="danger"
@@ -24,12 +24,13 @@
             </div>
         </template>
         <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
-        <Column field="title" header="Title" sortable></Column>
-        <Column field="requester.name" header="Name"></Column>
-        <Column field="requester.email" header="Email"></Column>
-        <Column header="DOI">
+        <Column field="acronym" header="Dataset Acronym" sortable></Column>
+        <Column field="title" header="Dataset Title" sortable></Column>
+        <Column field="submitter.name" header="Submitter Name"></Column>
+        <Column field="submitter.email" header="Submitter Email"></Column>
+        <Column>
             <template #body="slotProps">
-                <a :href="'https://doi.org/' + slotProps.data.doi" target="_blank">{{ slotProps.data.doi }}</a>
+                <Button @click="showDetail(slotProps.data.acronym)" label="Details" icon="pi pi-info-circle" rounded outlined />
             </template>
         </Column>
         </DataTable>
@@ -44,6 +45,8 @@ import MainMenu from '@/components/menu.vue'
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm'
 import { useDialog } from 'primevue/usedialog'
+
+const router = useRouter()
 
 const toast = useToast()
 const confirm = useConfirm()
@@ -135,18 +138,22 @@ const approveRequest = () => {
                 toast.add({
                     severity: 'error',
                     summary: 'Error while accepting request',
-                    detail: 'Sorry, function is not enabled at this time.',
+                    detail: error.response.data,
                     life: 3000
                 })
             })
     })
 }
 
+const showDetail = (acronym) => {
+    navigateTo(`/detail/${encodeURIComponent(acronym)}`)
+}
+
 const showUpload = () => {
     const dialogRef = dialog.open(UploadDialog, {
         props: {
-            header: 'Request analysis',
-            model: true
+            header: 'Submit Dataset',
+            modal: true
         },
         onClose: (options) => {
             const uploadedFile = options.data

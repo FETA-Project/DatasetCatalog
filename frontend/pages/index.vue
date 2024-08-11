@@ -10,7 +10,8 @@
     <template #header>
         <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
             <div>
-                <Button label="Delete" icon="pi pi-trash" severity="danger" @click="deleteData()" :disabled="!selectedData || !selectedData.length" />
+                <Button label="Submit Dataset" icon="pi pi-ticket" class="mr-2" @click="showUpload" />
+                <Button label="Delete" icon="pi pi-trash" class="mr-2" severity="danger" @click="deleteData()" :disabled="!selectedData || !selectedData.length" />
             </div>
             <span class="p-input-icon-left">
                 <i class="pi pi-search" />
@@ -20,6 +21,7 @@
     </template>
     <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
     <Column expander style="width: 3rem"></Column>
+    <Column field="acronym" header="Acronym" sortable></Column>
     <Column field="title" header="Title" sortable></Column>
     <Column header="DOI">
         <template #body="slotProps">
@@ -35,36 +37,29 @@
     </Column>
     <Column>
         <template #body="slotProps">
-            <Button @click="getDetails(slotProps.data.title)" label="Details" icon="pi pi-info-circle" rounded outlined />
+            <Button @click="showDetail(slotProps.data.acronym)" label="Details" icon="pi pi-info-circle" rounded outlined />
         </template>
     </Column>
-    <!-- <Column field="size" header="Size"></Column>
-    <Column field="format" header="Format"></Column>
-    <Column field="score" header="Score"></Column> -->
     <template #expansion="slotProps">
         <div class="flex justify-content-center">
             <ul style="list-style: none">
+                <li><b>Paper Title: </b> {{ slotProps.data.paper_title }}</li>
+                <li><b>Author: </b> {{ slotProps.data.author }}</li>
+                <li><b>Date Submitted: </b> {{ slotProps.data.date_submitted }}</li>
                 <li>
-                    <b>Requester</b>
+                    <b>Submitter: </b>
                     <ul>
-                        <li><b>Name:</b> {{ slotProps.data.requester.name }}</li>
-                        <li><b>Email:</b> {{ slotProps.data.requester.email}}</li>
+                        <li><b>Name: </b> {{ slotProps.data.submitter_name }}</li>
+                        <li><b>Email: </b> {{ slotProps.data.submitter_email}}</li>
                     </ul>
                 </li>
-                <li> <b>Description:</b> {{ slotProps.data.description }} </li>
-                <li> <b>Date:</b> {{ slotProps.data.date }}</li>
-                <!-- <li> <b>Date:</b> <Date timedate="{{ slotProps.data.date }}" /> </li> -->
-                <li> <b>Origins DOI:</b> 
-                    <ul>
-                        <li v-for="value in slotProps.data.origins_doi">
-                            <a :href="'https://doi.org/' + value" target="_blank">{{ value }}</a>
-                        </li>
-                    </ul>
-                </li>
+                <li> <b>Description: </b> {{ slotProps.data.description }} </li>
+                <li> <b>Origins DOI: </b> {{ slotProps.data.origins_doi }} </li>
             </ul>
         </div>
     </template>
     </DataTable>
+    <DynamicDialog />
   </div>
 </template>
 
@@ -74,12 +69,13 @@ import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
 import { FilterMatchMode } from 'primevue/api'
 import MainMenu from '@/components/menu.vue'
-import Date from '@/components/date.vue'
+import { useDialog } from 'primevue/usedialog'
 
 const router = useRouter()
 
 const confirm = useConfirm()
 const toast = useToast()
+const dialog = useDialog()
 
 const selectedData = ref([])
 const expandedRows = ref([])
@@ -89,6 +85,8 @@ const filters = ref({
 })
 
 const datasets = ref([])
+
+const UploadDialog = defineAsyncComponent(() => import('../components/upload.vue'))
 
 const get_datasets = () => {
 //   datasets.value = fake_data
@@ -108,16 +106,18 @@ const get_datasets = () => {
     })
 }
 
-onMounted(() => get_datasets())
+onMounted(() => {
+    get_datasets()
+})
 
-const getDetails = (title) => {
-    router.push({ path: `/detail/${title}` })
+const showDetail = (acronym) => {
+    navigateTo(`/detail/${encodeURIComponent(acronym)}`)
 }
 
 const deleteData = () => {
     let to_delete = []
     selectedData.value.forEach(d => {
-        to_delete.push(d.title)
+        to_delete.push(d.acronym)
     });
     confirm.require({
         message: `Are you sure you want to delete ${to_delete.length} files`,
@@ -125,13 +125,13 @@ const deleteData = () => {
         icon: 'pi pi-exclemation-triangle',
         accept: () => {
             selectedData.value = null
-            to_delete.forEach(title => {
-                axios.delete(`/api/datasets/${title}`)
+            to_delete.forEach(acronym => {
+                axios.delete(`/api/datasets/${acronym}`)
                     .then(() => {
                         toast.add({
                             severity: 'success',
                             summary: 'Delete Successful',
-                            detail: `Dataset ${title} deleted successfully.`,
+                            detail: `Dataset ${acronym} deleted successfully.`,
                             life: 3000
                             })
                         get_datasets()
@@ -148,24 +148,25 @@ const deleteData = () => {
         }
     })
 }
-const fake_data = [
-    {
-        title: "Name",
-        requester: {
-            name: "test1",
-            email: "test1"
-        },
-        description: "test1",
-        location: "test1",
-        tags: ["test1"],
-        report: {
-            Classes: 0,
-            'Duplicated Flows': 0,
-            Features: 0,
-            Redundancy: 0.0,
-            Samples : [0]
-        }
-    },
-]
 
+const showUpload = () => {
+    const dialogRef = dialog.open(UploadDialog, {
+        props: {
+            header: 'Submit Dataset',
+            modal: true
+        },
+        onClose: (options) => {
+            const uploadedFile = options.data
+            if (uploadedFile) {
+                toast.add({
+                    severity: 'success',
+                    summary: 'Upload Successful',
+                    detail: `File ${uploadedFile} uploaded successfully.`,
+                    life: 3000
+                })
+                get_datasets()
+            }
+        }
+    })
+}
 </script>

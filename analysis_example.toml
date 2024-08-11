@@ -1,0 +1,42 @@
+# title = "dataset name"
+# requester_name = "admin"
+# requester_mail = "admin@admin"
+# doi = "dataset/doi"
+# origins_doi = "dataset_origin/doi"
+# description = "dataset description"
+
+# [generic_info]
+# data_collection_year = "2022"
+# data_collection_tool = "CICFlowMeter-V3"
+# feature_extraction_tool = "CICFlowMeter-V3"
+# classes = 80
+# features = 80
+# known_issues = """
+# Dataset is affected by issues described in: https://intrusion-detection.distrinet-research.be/WTMC2021/extended_doc.html
+# Wrong feature name: Unnamed: 0
+# Network features contains raw ip addresses and ports which are not ideal
+# Unstandard csv headers format (leading space)
+# """
+# dataset_organization = """
+# - e.g. per day
+# - e.g. Each class per file
+# Notes
+# """
+# per_class_data = """
+# {'Apple iTunes': 926,
+#  'Google Authentication': 872,
+#  'SUKL eRecept': 800,
+#  'Xiaomi Account API': 710,
+#  'Kaspersky': 700,
+#  'Redmine (CESNET, MFF UK, KIV ZCU)': 682}
+# """
+
+# [dataset_analysis]
+# drift_workflow = "name_of_jupyter_notebook.ipynb"
+# drift_manual = "name_of_jupyter_notebook.ipynb"
+# redundancy = """
+# ...
+# """
+# complexity = """
+# ...
+# """
