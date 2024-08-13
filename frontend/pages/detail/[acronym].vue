@@ -51,7 +51,7 @@
                     <li v-for="(value, key) in field_value">
                         <b>{{ key.replaceAll("_", " ") }}: </b> 
 
-                        <a v-if="typeof value =='string' && value.endsWith('.ipynb')" :href="jupyterURL(value)" target="_blank">{{ value }}</a>
+                        <a v-if="typeof value =='string' && value.endsWith('.ipynb')" :href="jupyterURL(dataset.acronym + '/' + value)" target="_blank">{{ value }}</a>
                         <table v-else-if="check_if_json(value)" class="json-table">
                             <tr v-for="(value, key) in JSON.parse(value)">
                                 <td>{{ key }}</td>

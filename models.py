@@ -102,22 +102,21 @@ class Dataset(Document):
                 detail=f"Could not create directory '{_path}': {str(exc)}"
             )
 
+        Thread(target=self._git_push).start()
+
+    def _git_push(self):
         try:
-            self._git_push()
+            git_repo = git.Repo(config.ANALYSIS_DIR)
+            git_repo.index.add([secure_filename(self.acronym)])
+            git_repo.index.commit(f"Add analysis for {self.acronym}")
+            git_repo.remotes.origin.pull()
+            git_repo.remotes.origin.push().raise_if_error()
         except Exception as exc:
             print(f"Failed to push analysis for {self.acronym} to git: {str(exc)}")
             raise HTTPException(
                 status_code=500,
                 detail=f"Could not push analysis to git: {str(exc)}"
             )
-
-    def _git_push(self):
-        git_repo = git.Repo(config.ANALYSIS_DIR)
-        git_repo.index.add([secure_filename(self.acronym)])
-        git_repo.index.commit(f"Add analysis for {self.acronym}")
-        # TODO: pull/push in thread or something
-        git_repo.remotes.origin.pull()
-        git_repo.remotes.origin.push().raise_if_error()
 
     def _git_edit_url(self):
         _edit = f"/-/edit/main/{secure_filename(self.acronym)}/analysis.toml?ref_type=heads"

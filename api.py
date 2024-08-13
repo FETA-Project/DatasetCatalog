@@ -183,9 +183,11 @@ async def dataset(acronym: str):
     if dataset is None:
         Dataset.not_found(acronym)
 
+    analysis = dataset.get_analysis()
+
     return {
         'dataset': dataset,
-        'analysis': dataset.get_analysis(),
+        'analysis': analysis if analysis is not None else {},
         'edit_analysis_url': dataset._git_edit_url()
     }
 
