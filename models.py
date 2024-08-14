@@ -43,6 +43,7 @@ class Dataset(Document):
     status: DatasetStatus = DatasetStatus.REQUESTED
     tags: Optional[list[str]] = []
     filename: Optional[str | None] = None
+    url: Optional[str | None] = None
 
     class Settings:
         name = "datasets"
@@ -61,6 +62,7 @@ class Dataset(Document):
             "status": self.status.value,
             "tags": self.tags,
             "filename": self.filename,
+            "url": self.url
         }
 
     def get_file_path(self) -> str | None:

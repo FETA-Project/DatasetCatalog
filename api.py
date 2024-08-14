@@ -2,15 +2,15 @@ from datetime import datetime, UTC
 import json
 import os
 from typing import Optional
+import pathlib
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pymongo.errors import DuplicateKeyError
 
-from analysis import Analysis, get_analysis
 from models import (Dataset, DatasetStatus, Submitter, User)
 from oauth2 import require_user, require_admin
-from utils import disabled
+# from utils import disabled
 from werkzeug.utils import secure_filename
 
 api = APIRouter(prefix="/api")
@@ -66,8 +66,8 @@ async def upload(
     origins_doi: str = Form(""),
     submitter: str = Form(""),
     tags: str = Form(""),
-    file: UploadFile = File(...)
-    # url: str = Form(...),
+    url: str = Form(""),
+    file: Optional[UploadFile | None] = File(None),
     ):
 
     # TODO: add support for file upload from url
@@ -84,8 +84,11 @@ async def upload(
     )
 
     date_submitted = datetime.now(UTC)
-    _, ext = os.path.splitext(file.filename)
-    filename = f'{secure_filename(acronym)}{ext}'
+
+    if file is not None:
+        filename = f'{secure_filename(acronym)}{pathlib.Path(file.filename).suffix}'
+    else:
+        filename = None
 
     try:
         dataset = Dataset(
@@ -101,10 +104,12 @@ async def upload(
             status=DatasetStatus.ACCEPTED,
             tags=tags,
             filename=filename,
+            url=url,
         )
 
-        with open(dataset.get_file_path(), "wb") as f:
-            f.write(file.file.read())
+        if filename is not None:    
+            with open(dataset.get_file_path(), "wb") as f:
+                f.write(file.file.read())
 
         dataset.create_analysis()
         await dataset.insert()

@@ -176,15 +176,13 @@
             </template>
           </FileUpload>
         </TabPanel>
-        <!-- <TabPanel header="URL">
+        <TabPanel header="URL">
             <div class="flex justify-content-center gap-2">
                <InputText
                 id="url"
                 v-model="url"
-                :class="{ error: urlError }"
                 aria-describedby="url-help"
                 placeholder="URL"
-                @blur="urlError = url.length === 0"
                 class="w-8"
                 /> 
                 <Button
@@ -194,7 +192,7 @@
                   class="w-4"
                 />
             </div>
-        </TabPanel> -->
+        </TabPanel>
       </TabView>
       <footer><small>* required field</small></footer>
     </div>
@@ -268,8 +266,12 @@ async function makeRequest(event) {
     email: email.value
   }));
   formData.append("tags", tags.value === undefined ? [] : tags.value);
+  formData.append("url", url.value);
 
-  formData.append("file", event.files[0]);
+  console.log(event.files)
+  if(event.files !== undefined) {
+      formData.append("file", event.files[0]);
+  }
 
   if (acronym.value.length == 0) {
     clearUpload()
@@ -284,6 +286,10 @@ async function makeRequest(event) {
   }
 
   name.value = encodeURIComponent(name.value)
+
+  formData.forEach(element => {
+    console.log(element)
+  });
 
   await axios
     .post("/api/requests", formData, {

@@ -15,7 +15,11 @@ from models import User
 from update_db_from_csv import update_db_from_csv
 
 
-app = FastAPI()
+app = FastAPI(
+    openapi="3.0.2",
+    openapi_url="/docs/openapi.json",
+    docs_url='/docs',
+)
 
 origins = [
     config.CLIENT_ORIGIN,
