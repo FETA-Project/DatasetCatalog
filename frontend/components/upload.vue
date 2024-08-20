@@ -83,18 +83,23 @@
           Paper Title is required.
         </small>
       </div>
-      <div id="paperTitle" :class="{ error: authorError }" class="flex flex-column gap-2">
-        <label for="author">
-            <i class="pi pi-info-circle" v-tooltip.right="'Title of the dataset'" />
-            Dataset Author
+      <div id="datasetAuthors" :class="{ error: authorsError }" class="flex flex-column gap-2">
+        <label for="authors">
+            <i class="pi pi-info-circle" v-tooltip.right="'Authors of the dataset (split by a comma).'" />
+            Dataset Authors
         </label>
-        <InputText
-          id="author"
-          v-model="author"
-          aria-describedby="author-help"
-          placeholder="Dataset Author"
-        />
-        <small v-if="authorError" class="p-error">
+        <div class="card p-fluid p-hidden-label">
+            <Chips 
+              id="authors"
+              v-model="authors"
+              separator=","
+              placeholder="Authors..."
+              add-on-blur="true"
+              allow-duplicate="false"
+              v-tooltip.bottom="'The dataset authors.'"
+            />
+        </div>
+        <small v-if="authorsError" class="p-error">
           <i class="pi pi-exclamation-circle" style="font-size: 0.8rem" />
           Dataset Author is required.
         </small>
@@ -124,7 +129,7 @@
               id="tags"
               v-model="tags"
               separator=","
-              placeholder="Tag"
+              placeholder="Tags..."
               add-on-blur="true"
               allow-duplicate="false"
               v-tooltip.bottom="'Tags to describe the dataset.'"
@@ -218,8 +223,8 @@ const title = ref("");
 const titleError = ref(false);
 const paperTitle = ref("");
 const paperTitleError = ref(false);
-const author = ref("");
-const authorError = ref(false);
+const authors = ref("");
+const authorsError = ref(false);
 const description = ref("");
 const descriptionError = ref(false);
 const doi = ref("");
@@ -257,7 +262,7 @@ async function makeRequest(event) {
   formData.append("acronym", acronym.value)
   formData.append("title", title.value);
   formData.append("paper_title", paperTitle.value);
-  formData.append("author", author.value);
+  formData.append("authors", authors.value === undefined ? [] : authors.value);
   formData.append("description", description.value);
   formData.append("doi", doi.value);
   formData.append("origins_doi", originsDoi.value);

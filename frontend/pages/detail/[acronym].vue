@@ -19,7 +19,9 @@
             <ul style="list-style: none" class="flex flex-column gap-2">
                 <li><b>Dataset Title: </b> {{ dataset.title }}</li>
                 <li><b>Paper Title: </b> {{ dataset.paper_title }}</li>
-                <li><b>Author: </b> {{ dataset.author }}</li>
+                <li class="flex gap-2"> <b>Authors: </b> 
+                    <Chip v-for="author in dataset.authors">{{ author }}</Chip>
+                </li>
                 <li><b>Date Submitted: </b> {{ dataset.date_submitted }}</li>
                 <li>
                     <b>Submitter: </b>
@@ -29,8 +31,8 @@
                     </ul>
                 </li>
                 <li> <b>Description: </b> {{ dataset.description }} </li>
-                <li> <b>DOI: </b> {{ dataset.doi }} </li>
-                <li> <b>Origins DOI: </b> {{ dataset.origins_doi }} </li>
+                <li> <b>DOI: </b> <a :href="dataset.doi" target="_blank">{{ dataset.doi }}</a></li>
+                <li> <b>Origins DOI: </b> <a :href="dataset.origins_doi" target="_blank">{{ dataset.origins_doi }}</a></li>
                 <li class="flex gap-2"> <b>Tags: </b> 
                     <!-- <div class="flex gap-2"><Chip v-for="tag in dataset.tags">{{ tag }}</Chip></div> -->
                     <Chip v-for="tag in dataset.tags">{{ tag }}</Chip>
@@ -77,6 +79,7 @@ import axios from 'axios'
 import MainMenu from '@/components/menu.vue'
 import { useToast } from 'primevue/usetoast'
 import Chip from 'primevue/chip';
+import FormatedDate from '@/components/date.vue'
 const toast = useToast()
 const dataset_acronym = ref("Unknown")
 const dataset = ref()
@@ -112,6 +115,7 @@ const get_dataset = (acronym) => {
         //   dataset.value.analysis = {}
           console.log(response.data)
           dataset.value = response.data.dataset
+          dataset.value.authors = dataset.value.authors.filter(author => author !== "")
           dataset.value.tags = dataset.value.tags.filter(tag => tag !== "")
           analysis.value = response.data.analysis
           edit_analysis_url.value = response.data.edit_analysis_url

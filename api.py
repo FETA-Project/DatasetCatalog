@@ -60,7 +60,7 @@ async def upload(
     acronym: str = Form(...),
     title: str = Form(""),
     paper_title: str = Form(""),
-    author: str = Form(""),
+    authors: str = Form(""),
     description: str = Form(""),
     doi: str = Form(""),
     origins_doi: str = Form(""),
@@ -77,6 +77,7 @@ async def upload(
     try:
         submitter = Submitter(json.loads(submitter))
         tags = tags.split(",")
+        authors = authors.split(",")
     except Exception as exc:
         raise HTTPException(
         status_code=400,
@@ -95,7 +96,7 @@ async def upload(
             acronym=acronym,
             title=title,
             paper_title=paper_title,
-            author=author,
+            authors=authors,
             description=description,
             doi=doi,
             origins_doi=origins_doi,
@@ -222,7 +223,7 @@ async def dataset_edit(
     acronym: str,
     title: Optional[str] = Form(None),
     paper_title: Optional[str] = Form(None),
-    author: Optional[str] = Form(None),
+    authors: Optional[str] = Form(None),
     description: Optional[str] = Form(None),
     doi: Optional[str] = Form(None),
     origins_doi: Optional[str] = Form(None),
@@ -240,8 +241,8 @@ async def dataset_edit(
     if paper_title is not None:
         dataset.paper_title = paper_title
     
-    if author is not None:
-        dataset.author = author
+    if authors is not None:
+        dataset.authors = authors.split(",")
     
     if description is not None:
         dataset.description = description

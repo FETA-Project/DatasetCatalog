@@ -34,7 +34,7 @@ class Dataset(Document):
     acronym: Indexed(str, index_type=pymongo.TEXT, unique=True)
     title: Optional[str] = "Unknown"
     paper_title: Optional[str] = "Unknown"
-    author: Optional[str] = "Unknown"
+    authors: Optional[list[str]] = ["Unknown"]
     description: Optional[str] = ""
     doi: Optional[str] = ""
     origins_doi: Optional[str] =""
@@ -53,7 +53,7 @@ class Dataset(Document):
             "acronym": self.acronym,
             "title": self.title,
             "paper_title": self.paper_title,
-            "author": self.author,
+            "authors": self.authors,
             "description": self.description,
             "doi": self.doi,
             "origins_doi": self.origins_doi,
@@ -169,6 +169,7 @@ class User(Document):
 
 
 class Analysis:  # pylint: disable=too-few-public-methods
+    # TODO: expect wrong analysis file
 
     def __init__(self, file):
         self.path = os.path.abspath(os.path.dirname(file))

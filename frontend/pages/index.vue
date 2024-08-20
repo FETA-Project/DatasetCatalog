@@ -44,7 +44,9 @@
         <div class="flex">
             <ul style="list-style: none">
                 <li><b>Paper Title: </b> {{ slotProps.data.paper_title }}</li>
-                <li><b>Author: </b> {{ slotProps.data.author }}</li>
+                <li class="flex gap-2"> <b>Authors: </b> 
+                    <Chip v-for="author in slotProps.data.authors">{{ author }}</Chip>
+                </li>
                 <li><b>Date Submitted: </b> {{ slotProps.data.date_submitted }}</li>
                 <li>
                     <b>Submitter: </b>
@@ -54,8 +56,7 @@
                     </ul>
                 </li>
                 <li> <b>Description: </b> {{ slotProps.data.description }} </li>
-                <li> <b>Origins DOI: </b> {{ slotProps.data.origins_doi }} </li>
-                <li> <b>Data URL: </b> <a :href="slotProps.data.url" target="_blank">{{ slotProps.data.url }}</a></li>
+                <li> <b>Origins: </b> <a :href="slotProps.data.origins_doi" target="_blank">{{ slotProps.data.origins_doi }}</a></li>
             </ul>
         </div>
     </template>
