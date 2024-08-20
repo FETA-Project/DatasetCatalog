@@ -164,6 +164,22 @@
                     placeholder="Origins DOI"
                     /> 
           </div>
+          <div id="url" :class="{ error: urlError }" class="flex flex-column gap-2">
+            <label for="url">
+                <i class="pi pi-info-circle" v-tooltip.right="'Title of the dataset'" />
+                Dataset File URL
+            </label>
+            <InputText
+              id="url"
+              v-model="url"
+              aria-describedby="url-help"
+              placeholder="Dataset Title"
+            />
+            <!-- <small v-if="urlError" class="p-error">
+              <i class="pi pi-exclamation-circle" style="font-size: 0.8rem" />
+              Dataset Title is required.
+            </small> -->
+          </div>
           <footer>
             <Button label="Edit" icon="pi pi-pencil" class="mr-2" @click="editDataset()"/>
           </footer>
@@ -207,6 +223,8 @@ const originsDoi = ref("");
 const originsDoiError = ref(false);
 const name = ref("");
 const nameError = ref(false);
+const url = ref("");
+const urlError = ref(false);
 // TODO: check if email is valid
 const email = ref("");
 const emailError = ref(false);
@@ -232,7 +250,8 @@ const get_dataset = (_acronym) => {
           originsDoi.value = dataset.value.origins_doi
           name.value = dataset.value.submitter.name
           email.value = dataset.value.submitter.email
-          tags.value = dataset.value.tags
+          tags.value = dataset.value.tags.filter(tag => tag !== "")
+          url.value = dataset.value.url
       })
       .catch(error => {
             toast.add({

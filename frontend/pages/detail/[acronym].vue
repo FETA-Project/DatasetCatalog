@@ -31,7 +31,11 @@
                 <li> <b>Description: </b> {{ dataset.description }} </li>
                 <li> <b>DOI: </b> {{ dataset.doi }} </li>
                 <li> <b>Origins DOI: </b> {{ dataset.origins_doi }} </li>
-                <li> <b>Tags: </b> {{ dataset.tags }}</li>
+                <li class="flex gap-2"> <b>Tags: </b> 
+                    <!-- <div class="flex gap-2"><Chip v-for="tag in dataset.tags">{{ tag }}</Chip></div> -->
+                    <Chip v-for="tag in dataset.tags">{{ tag }}</Chip>
+                </li>
+                <li> <b>Data URL: </b> <a :href="dataset.url" target="_blank">{{ dataset.url }}</a></li>
             </ul>
         </Fieldset>
         <!-- <Fieldset legend="Base Info" :toggleable="true">
@@ -72,6 +76,7 @@
 import axios from 'axios'
 import MainMenu from '@/components/menu.vue'
 import { useToast } from 'primevue/usetoast'
+import Chip from 'primevue/chip';
 const toast = useToast()
 const dataset_acronym = ref("Unknown")
 const dataset = ref()
@@ -107,6 +112,7 @@ const get_dataset = (acronym) => {
         //   dataset.value.analysis = {}
           console.log(response.data)
           dataset.value = response.data.dataset
+          dataset.value.tags = dataset.value.tags.filter(tag => tag !== "")
           analysis.value = response.data.analysis
           edit_analysis_url.value = response.data.edit_analysis_url
           console.log(dataset.value)
@@ -138,6 +144,12 @@ const editAnalysis = () => {
 }
 
 const downloadDataset = (acronym) => {
+    if(dataset.value.url) {
+        window.open(dataset.value.url, "_blank")
+        return
+    } else {
+        console.log("No URL - trying local file")
+    }
     // axios.get(`/api/datasets/${encodeURIComponent(acronym)}/file`)
     axios.get(`/api/files/${encodeURIComponent(acronym)}`)
         .then(response => {

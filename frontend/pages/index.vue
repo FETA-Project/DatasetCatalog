@@ -4,7 +4,7 @@
     <MainMenu />
     <h1>Dataset Catalog</h1>
     <ConfirmDialog />
-    <DataTable :value="datasets" scrollable scrollHeight="500px" :filters="filters"
+    <DataTable :value="datasets" scrollable :filters="filters"
             v-model:selection="selectedData"
             v-model:expanded-rows="expandedRows">
     <template #header>
@@ -41,7 +41,7 @@
         </template>
     </Column>
     <template #expansion="slotProps">
-        <div class="flex justify-content-center">
+        <div class="flex">
             <ul style="list-style: none">
                 <li><b>Paper Title: </b> {{ slotProps.data.paper_title }}</li>
                 <li><b>Author: </b> {{ slotProps.data.author }}</li>
@@ -49,12 +49,13 @@
                 <li>
                     <b>Submitter: </b>
                     <ul>
-                        <li><b>Name: </b> {{ slotProps.data.submitter_name }}</li>
-                        <li><b>Email: </b> {{ slotProps.data.submitter_email}}</li>
+                        <li><b>Name: </b> {{ slotProps.data.submitter.name }}</li>
+                        <li><b>Email: </b> {{ slotProps.data.submitter.email}}</li>
                     </ul>
                 </li>
                 <li> <b>Description: </b> {{ slotProps.data.description }} </li>
                 <li> <b>Origins DOI: </b> {{ slotProps.data.origins_doi }} </li>
+                <li> <b>Data URL: </b> <a :href="slotProps.data.url" target="_blank">{{ slotProps.data.url }}</a></li>
             </ul>
         </div>
     </template>
