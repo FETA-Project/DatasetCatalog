@@ -13,7 +13,6 @@ import toml
 from typing_extensions import TypedDict
 from werkzeug.utils import secure_filename
 
-# from analysis import Analysis
 from config import config
 from utils import hash_password, verify_password
 
@@ -32,6 +31,7 @@ class Submitter(TypedDict):
 
 class Dataset(Document):
     acronym: Indexed(str, index_type=pymongo.TEXT, unique=True)
+    acronym_aliases: Optional[list[str]] = []
     title: Optional[str] = "Unknown"
     paper_title: Optional[str] = "Unknown"
     authors: Optional[list[str]] = ["Unknown"]
@@ -51,6 +51,7 @@ class Dataset(Document):
     def to_dict(self) -> dict:
         return {
             "acronym": self.acronym,
+            "acronym_aliases": self.acronym_aliases,
             "title": self.title,
             "paper_title": self.paper_title,
             "authors": self.authors,
@@ -169,10 +170,14 @@ class User(Document):
 
 
 class Analysis:  # pylint: disable=too-few-public-methods
-    # TODO: expect wrong analysis file
 
     def __init__(self, file):
         self.path = os.path.abspath(os.path.dirname(file))
         self.dirname = os.path.split(self.path)[1]
 
-        self.analysis = toml.load(file)
+        try:
+            self.analysis = toml.load(file)
+        except toml.decoder.TomlDecodeError as exc:
+            print(f"Could not load analysis '{self.dirname}': {exc}")
+            self.analysis = dict({'Analysis Error': {'Error Message': str(exc)}})
+            

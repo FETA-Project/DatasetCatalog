@@ -58,6 +58,7 @@ async def get_requests():
 @api.post('/requests')
 async def upload(
     acronym: str = Form(...),
+    acronym_aliases: str = Form(""),
     title: str = Form(""),
     paper_title: str = Form(""),
     authors: str = Form(""),
@@ -78,6 +79,7 @@ async def upload(
         submitter = Submitter(json.loads(submitter))
         tags = tags.split(",")
         authors = authors.split(",")
+        acronym_aliases = acronym_aliases.split(",")
     except Exception as exc:
         raise HTTPException(
         status_code=400,
@@ -94,6 +96,7 @@ async def upload(
     try:
         dataset = Dataset(
             acronym=acronym,
+            acronym_aliases=acronym_aliases,
             title=title,
             paper_title=paper_title,
             authors=authors,
@@ -191,8 +194,20 @@ async def dataset(acronym: str):
 
     analysis = dataset.get_analysis()
 
+    related = []
+    origin = []
+
+    if dataset.doi != "":
+        related = await Dataset.find(Dataset.origins_doi == dataset.doi).to_list()
+    if dataset.origins_doi != "":
+        origin = await Dataset.find(Dataset.doi == dataset.origins_doi).to_list()
+        same_origin = await Dataset.find(Dataset.origins_doi == dataset.origins_doi).to_list()
+
     return {
         'dataset': dataset,
+        'related_datasets': [d.acronym for d in related if d.acronym != dataset.acronym],
+        'origin_datasets': [d.acronym for d in origin if d.acronym != dataset.acronym],
+        'same_origin_datasets': [d.acronym for d in same_origin if d.acronym != dataset.acronym],
         'analysis': analysis if analysis is not None else {},
         'edit_analysis_url': dataset._git_edit_url()
     }
@@ -221,6 +236,7 @@ async def dataset_download(acronym: str):
 @api.post('/datasets/{acronym:path}/edit')
 async def dataset_edit(
     acronym: str,
+    acronym_aliases: Optional[str] = Form(None),
     title: Optional[str] = Form(None),
     paper_title: Optional[str] = Form(None),
     authors: Optional[str] = Form(None),
@@ -234,6 +250,9 @@ async def dataset_edit(
 
     if dataset is None:
         Dataset.not_found(acronym)
+
+    if acronym_aliases is not None:
+        dataset.acronym_aliases = acronym_aliases.split(",")
 
     if title is not None:
         dataset.title = title

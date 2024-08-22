@@ -26,7 +26,28 @@
               Dataset Acronym is required and must be unique.
             </small>
           </div> -->
-          <div id="title" :class="{ error: titleError }" class="flex flex-column gap-2">
+          <div id="acronym_alias" :class="{ error: acronym_aliasesError }" class="flex flex-column gap-2">
+            <label for="acronym_alias">
+                <i class="pi pi-info-circle" v-tooltip.right="'The acronym aliases.'" />
+                Dataset Acronym Aliases
+            </label>
+            <div class="card p-fluid p-hidden-label">
+                <Chips 
+                  id="acronym_aliases"
+                  v-model="acronym_aliases"
+                  separator=","
+                  placeholder="Aliases..."
+                  add-on-blur="true"
+                  allow-duplicate="false"
+                  v-tooltip.bottom="'The dataset acronym aliases.'"
+                />
+            </div>
+            <small v-if="acronym_aliasesError" class="p-error">
+              <i class="pi pi-exclamation-circle" style="font-size: 0.8rem" />
+              Dataset Aliases are required.
+            </small>
+          </div>
+           <div id="title" :class="{ error: titleError }" class="flex flex-column gap-2">
             <label for="title">
                 <i class="pi pi-info-circle" v-tooltip.right="'Title of the dataset'" />
                 Dataset Title
@@ -93,7 +114,7 @@
           <div id="author" :class="{ error: authorsError }" class="flex flex-column gap-2">
             <label for="author">
                 <i class="pi pi-info-circle" v-tooltip.right="'Title of the dataset'" />
-                Dataset Author
+                Dataset Authors
             </label>
             <div class="card p-fluid p-hidden-label">
                 <Chips 
@@ -214,6 +235,8 @@ const dataset = ref();
 
 const acronym = ref("");
 const acronymError = ref(false);
+const acronym_aliases = ref("");
+const acronym_aliasesError = ref(false);
 const title = ref("");
 const titleError = ref(false);
 const paperTitle = ref("");
@@ -247,6 +270,7 @@ const get_dataset = (_acronym) => {
           console.log(dataset.value)
 
           acronym.value = dataset.value.acronym
+          acronym_aliases.value = dataset.value.acronym_aliases.filter(alias => alias !== "")
           title.value = dataset.value.title
           paperTitle.value = dataset.value.paper_title
           authors.value = dataset.value.authors.filter(author => author !== "")
@@ -271,6 +295,7 @@ const get_dataset = (_acronym) => {
 async function editDataset() {
   const formData = new FormData();
 //   formData.append("acronym", acronym.value)
+  formData.append("acronym_aliases", acronym_aliases.value === undefined ? [] : acronym_aliases.value);
   formData.append("title", title.value);
   formData.append("paper_title", paperTitle.value);
   formData.append("authors", authors.value === undefined ? [] : authors.value);

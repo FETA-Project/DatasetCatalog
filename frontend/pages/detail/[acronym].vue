@@ -15,8 +15,33 @@
             <Button @click="editDataset(dataset.acronym)" label="Edit Info" icon="pi pi-pencil" />
             <Button @click="editAnalysis(dataset.acronym)" label="Edit Analysis" icon="pi pi-external-link" severity="secondary" />
         </h2>
+        <Fieldset legend="Related Datasets" :toggleable="true" collapsed>
+            <ul class="flex flex-column gap-2">
+                <div v-if="origin_datasets.length > 0">
+                    <b>Origin Datasets</b>
+                    <li v-for="acronym in origin_datasets">
+                        <span class="detail-link" @click="showDetail(acronym)">{{ acronym }}</span>
+                    </li>
+                </div>
+                <div v-if="related_datasets.length > 0">
+                    <b>Related Datasets</b>
+                    <li v-for="acronym in related_datasets">
+                        <span class="detail-link" @click="showDetail(acronym)">{{ acronym }}</span>
+                    </li>
+                </div>
+                <div v-if="same_origin_datasets.length > 0">
+                    <b>Datasets With the Same Origin</b>
+                    <li v-for="acronym in same_origin_datasets">
+                        <span class="detail-link" @click="showDetail(acronym)">{{ acronym }}</span>
+                    </li>
+                </div>
+            </ul>
+        </Fieldset>
         <Fieldset legend="Details" :toggleable="true">
             <ul style="list-style: none" class="flex flex-column gap-2">
+                <li class="flex gap-2"> <b>Acronym Aliases: </b> 
+                    <Chip v-for="acronym_alias in dataset.acronym_aliases">{{ acronym_alias }}</Chip>
+                </li>
                 <li><b>Dataset Title: </b> {{ dataset.title }}</li>
                 <li><b>Paper Title: </b> {{ dataset.paper_title }}</li>
                 <li class="flex gap-2"> <b>Authors: </b> 
@@ -58,11 +83,13 @@
                         <b>{{ key.replaceAll("_", " ") }}: </b> 
 
                         <a v-if="typeof value =='string' && value.endsWith('.ipynb')" :href="jupyterURL(dataset.acronym + '/' + value)" target="_blank">{{ value }}</a>
-                        <table v-else-if="check_if_json(value)" class="json-table">
-                            <tr v-for="(value, key) in JSON.parse(value)">
-                                <td>{{ key }}</td>
-                                <td>{{ value }}</td>
-                            </tr>
+                        <table v-else-if="check_if_json(value)" class="styled-table">
+                            <tbody>
+                                <tr v-for="(field, header) in JSON.parse(value)">
+                                    <td>{{ header }}</td>
+                                    <td>{{ field }}</td>
+                                </tr>
+                            </tbody>
                         </table>
                         <!-- <span v-else-if="typeof value == 'string'" style="white-space: pre">{{ value }}</span> -->
                         <!-- <pre v-else-if="check_if_json(value)">{{ JSON.stringify(JSON.parse(value), null, 2) }}</pre> -->
@@ -83,6 +110,9 @@ import FormatedDate from '@/components/date.vue'
 const toast = useToast()
 const dataset_acronym = ref("Unknown")
 const dataset = ref()
+const related_datasets = ref()
+const origin_datasets = ref()
+const same_origin_datasets = ref()
 const analysis = ref()
 const edit_analysis_url = ref()
 const route = useRoute()
@@ -109,6 +139,10 @@ const check_if_json = (string) => {
     }
 }
 
+const showDetail = (acronym) => {
+    navigateTo(`/detail/${encodeURIComponent(acronym)}`)
+}
+
 const get_dataset = (acronym) => {
     axios.get(`/api/datasets/${encodeURIComponent(acronym)}`)
       .then(response => {
@@ -119,7 +153,12 @@ const get_dataset = (acronym) => {
           dataset.value.tags = dataset.value.tags.filter(tag => tag !== "")
           analysis.value = response.data.analysis
           edit_analysis_url.value = response.data.edit_analysis_url
+          related_datasets.value = response.data.related_datasets
+          origin_datasets.value = response.data.origin_datasets
+          same_origin_datasets.value = response.data.same_origin_datasets
           console.log(dataset.value)
+          console.log(related_datasets.value)
+          console.log(origin_datasets.value)
       })
       .catch(error => {
             toast.add({
@@ -214,9 +253,52 @@ fieldset > legend {
     border: 1px solid black;
 }
 
+.styled-table {
+    border-collapse: collapse;
+    margin: 25px 0;
+    font-size: 0.9em;
+    font-family: sans-serif;
+    min-width: 400px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+}
+
+.styled-table thead tr {
+    /* background-color: #009879; */
+    color: #ffffff;
+    text-align: left;
+}
+
+.styled-table th,
+.styled-table td {
+    padding: 12px 15px;
+}
+
+.styled-table tbody tr {
+    border-bottom: 1px solid #dddddd;
+}
+
+.styled-table tbody tr:nth-of-type(even) {
+    background-color: #f3f3f3;
+}
+
+/* .styled-table tbody tr:last-of-type {
+    border-bottom: 2px solid #009879;
+} */
+/* .styled-table tbody tr.active-row {
+    font-weight: bold;
+    color: #009879;
+} */
+
+
+
 .p-toast-detail {
   white-space: normal; /* Ensures text wraps to the next line */
   word-break: break-word; /* Prevents long words from breaking the layout */
+}
+
+.detail-link {
+  cursor: pointer;
+  text-decoration: dotted underline;
 }
 
 </style>

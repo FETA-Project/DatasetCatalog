@@ -19,6 +19,23 @@
           Dataset Acronym is required and must be unique.
         </small>
       </div>
+      <div id="acronym_aliases" class="flex flex-column gap-2">
+        <label for="acronym_aliases">
+            <i class="pi pi-info-circle" v-tooltip.right="'Acronym Aliases (words split by comma).'" />
+            Dataset Acronym Aliases
+        </label>
+        <div class="card p-fluid p-hidden-label">
+            <Chips 
+              id="acronym_aliases"
+              v-model="acronym_aliases"
+              separator=","
+              placeholder="Acronym Aliases..."
+              add-on-blur="true"
+              allow-duplicate="false"
+              v-tooltip.bottom="'Acronym Aliases.'"
+            />
+        </div>
+      </div>
       <div id="title" :class="{ error: titleError }" class="flex flex-column gap-2">
         <label for="title">
             <i class="pi pi-info-circle" v-tooltip.right="'Title of the dataset'" />
@@ -219,6 +236,8 @@ const dialogRef = inject("dialogRef")
 
 const acronym = ref("");
 const acronymError = ref(false);
+const acronym_aliases = ref("");
+const acronym_aliasesError = ref(false);
 const title = ref("");
 const titleError = ref(false);
 const paperTitle = ref("");
@@ -260,6 +279,7 @@ async function makeRequestLocal(event) {
 async function makeRequest(event) {
   const formData = new FormData();
   formData.append("acronym", acronym.value)
+  formData.append("acronym_aliases", acronym_aliases.value === undefined ? [] : acronym_aliases.value);
   formData.append("title", title.value);
   formData.append("paper_title", paperTitle.value);
   formData.append("authors", authors.value === undefined ? [] : authors.value);
