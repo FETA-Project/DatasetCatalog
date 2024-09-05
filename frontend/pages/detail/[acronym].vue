@@ -47,7 +47,7 @@
                 <li class="flex gap-2"> <b>Authors: </b> 
                     <Chip v-for="author in dataset.authors">{{ author }}</Chip>
                 </li>
-                <li><b>Date Submitted: </b> {{ dataset.date_submitted }}</li>
+                <li><b>Date Submitted: </b> <FormatedDate :datetime="dataset.date_submitted"/></li>
                 <li>
                     <b>Submitter: </b>
                     <ul>
@@ -64,6 +64,10 @@
                 </li>
                 <li> <b>Data URL: </b> <a :href="dataset.url" target="_blank">{{ dataset.url }}</a></li>
             </ul>
+        </Fieldset>
+        <Fieldset legend="Comment Section" :toggleable="true" collapsed>
+            <Button label="Add Comment" icon="pi pi-plus" severity="secondary" @click="createComment(dataset.acronym)" style="margin-bottom: 0.3em" />
+            <Comments @signal="handleSignal" :comments="comments" :key="commentsKey"/>
         </Fieldset>
         <!-- <Fieldset legend="Base Info" :toggleable="true">
             <ul style="list-style: none">
@@ -105,8 +109,11 @@
 import axios from 'axios'
 import MainMenu from '@/components/menu.vue'
 import { useToast } from 'primevue/usetoast'
+import { useDialog } from 'primevue/usedialog'
 import Chip from 'primevue/chip';
 import FormatedDate from '@/components/date.vue'
+import Comments from '@/components/comments.vue'
+
 const toast = useToast()
 const dataset_acronym = ref("Unknown")
 const dataset = ref()
@@ -116,6 +123,12 @@ const same_origin_datasets = ref()
 const analysis = ref()
 const edit_analysis_url = ref()
 const route = useRoute()
+const comments = ref({})
+const commentsKey = ref(0)
+
+const dialog = useDialog()
+
+const CreateCommentDialog = defineAsyncComponent(() => import('@/components/create_comment.vue'))
 
 const openRepo = (repo) => {window.open("https://doi.org/" + repo, "_blank")}
 
@@ -143,23 +156,61 @@ const showDetail = (acronym) => {
     navigateTo(`/detail/${encodeURIComponent(acronym)}`)
 }
 
+const handleSignal = (payload) => {
+    refreshComments()
+}
+
+const refreshComments = () => {
+    axios.get(`/api/comments/${encodeURIComponent(dataset_acronym.value)}`)
+    .then(response => {
+        comments.value = response.data
+        commentsKey.value++
+    })
+    .catch(error => {
+        toast.add({
+            severity: 'error',
+            summary: 'Error while getting comments',
+            detail: error.response.data,
+            life: 3000
+        })
+    })
+}
+const createComment = (belongs_to) => {
+    const dialogRef = dialog.open(CreateCommentDialog, {
+        props: {
+            header: "Add Comment",
+        },
+        data: {
+            belongs_to: belongs_to,
+            parent_id: null,
+            edit: false,
+            text: "",
+            comment_id: null,
+        },
+        onClose: () => {
+            refreshComments()
+        }
+    })
+    
+}
+
 const get_dataset = (acronym) => {
-    axios.get(`/api/datasets/${encodeURIComponent(acronym)}`)
-      .then(response => {
+    axios.all([
+        axios.get(`/api/datasets/${encodeURIComponent(acronym)}`),
+        axios.get(`/api/comments/${encodeURIComponent(acronym)}`)
+    ])
+      .then(axios.spread((response_dataset, response_comments) => {
         //   dataset.value.analysis = {}
-          console.log(response.data)
-          dataset.value = response.data.dataset
+          dataset.value = response_dataset.data.dataset
           dataset.value.authors = dataset.value.authors.filter(author => author !== "")
           dataset.value.tags = dataset.value.tags.filter(tag => tag !== "")
-          analysis.value = response.data.analysis
-          edit_analysis_url.value = response.data.edit_analysis_url
-          related_datasets.value = response.data.related_datasets
-          origin_datasets.value = response.data.origin_datasets
-          same_origin_datasets.value = response.data.same_origin_datasets
-          console.log(dataset.value)
-          console.log(related_datasets.value)
-          console.log(origin_datasets.value)
-      })
+          analysis.value = response_dataset.data.analysis
+          edit_analysis_url.value = response_dataset.data.edit_analysis_url
+          related_datasets.value = response_dataset.data.related_datasets
+          origin_datasets.value = response_dataset.data.origin_datasets
+          same_origin_datasets.value = response_dataset.data.same_origin_datasets
+          comments.value = response_comments.data
+      }))
       .catch(error => {
             toast.add({
                 severity: 'error',
@@ -176,14 +227,7 @@ const editDataset = (acronym) => {
 
 // const editAnalysis = (acronym) => {
 const editAnalysis = () => {
-    console.log(edit_analysis_url.value)
     window.open(edit_analysis_url.value, "_blank")
-    // toast.add({
-    //     severity: 'info',
-    //     summary: 'Edit Analysis',
-    //     detail: `To edit analysis of [${acronym}] you need to go to [${analysis.value.path}] on local machine and edit [analysis.toml]`,
-    //     // life: 3000
-    //     })
 }
 
 const downloadDataset = (acronym) => {

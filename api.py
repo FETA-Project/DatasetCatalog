@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pymongo.errors import DuplicateKeyError
 
-from models import (Dataset, DatasetStatus, Submitter, User)
+from models import (Comment, Dataset, DatasetStatus, Submitter, User)
 from oauth2 import require_user, require_admin
 # from utils import disabled
 from werkzeug.utils import secure_filename
@@ -196,6 +196,7 @@ async def dataset(acronym: str):
 
     related = []
     origin = []
+    same_origin = []
 
     if dataset.doi != "":
         related = await Dataset.find(Dataset.origins_doi == dataset.doi).to_list()
@@ -300,3 +301,86 @@ async def delete(acronym: str, user_email: str = Depends(require_admin)):
     await dataset.delete()
     # TODO: also delete analysis?
     return {"message": f"Dataset {acronym} deleted"}
+
+
+@api.post('/comments')
+async def create_comment(
+    text: str = Form(...),
+    author: str = Form(...),
+    belongs_to: str = Form(...),
+    parent_id: Optional[str] = Form(None)):
+
+    dataset = await Dataset.find(Dataset.acronym == belongs_to).first_or_none()
+
+    if dataset is None:
+        Dataset.not_found(belongs_to)
+
+    comment = Comment(
+        parent_id=parent_id,
+        belongs_to=belongs_to,
+        text=text,
+        author=author,
+        date=datetime.now(UTC)
+    )
+
+    await comment.insert()
+
+    return comment
+
+@api.post('/comments/{comment_id}')
+async def edit_comment(
+    comment_id: str,
+    text: str = Form(...),
+    # user_email: str = Depends(require_admin)
+    ):
+
+    comment = await Comment.get(comment_id)
+    if comment is None:
+        Comment.not_found(comment_id)
+
+    comment.text = text
+    comment.edited = True
+
+    await comment.save()
+
+    return comment
+
+@api.get('/comments/{acronym:path}')
+async def comments(acronym: str):
+    dataset = await Dataset.find(Dataset.acronym == acronym).first_or_none()
+
+    if dataset is None:
+        Dataset.not_found(acronym)
+
+    # root_comments = await Comment.find(Comment.belongs_to == acronym).to_list()
+    root_comments: list = await Comment.find(Comment.belongs_to == acronym, Comment.parent_id == None).to_list()
+
+    for i, comment in enumerate(root_comments):
+        _comment = comment.dict()
+        _comment.update({
+            "id": str(comment.id),
+            "children": await comment.get_children()
+        })
+        root_comments[i] = _comment
+
+    root_comments.sort(key=lambda x: x['date'], reverse=True)
+    return root_comments
+
+# async def comments_delete(acronym: str, comment_id: str, user_email: str = Depends(require_admin)):
+@api.delete('/comments/{comment_id}')
+async def comments_delete(comment_id: str):
+    comment = await Comment.get(comment_id)
+
+    if comment is None:
+        print("not found: ", comment_id)
+        # Comment.not_found(comment_id)
+
+    comment.deleted = True
+    comment.text = "<deleted>"
+    comment.author = "<deleted>"
+
+    await comment.save()
+
+    return {"message": f"Comment {comment_id} deleted"}
+
+#TODO: edit and delete comment

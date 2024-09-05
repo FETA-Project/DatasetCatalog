@@ -17,6 +17,45 @@ from config import config
 from utils import hash_password, verify_password
 
 
+class Comment(Document):
+    # id: str
+    parent_id: str = None
+    belongs_to: str
+    text: str
+    author: str
+    date: datetime
+    edited: bool = False
+    deleted: bool = False
+
+    async def get_parent(self) -> Optional["Comment"]:
+        if self.parent_id is not None:
+            return await Comment.find(Comment.id == self.parent_id).first()
+
+        return None
+
+    # get all children of this comment recursively
+    async def get_children(self) -> list["Comment"]:
+        children = await Comment.find(Comment.parent_id == str(self.id)).to_list()
+
+        for i, child in enumerate(children):
+            _child = child.dict()
+            _child.update({
+                "id": str(child.id),
+                "children": await child.get_children()
+            })
+            children[i] = _child
+
+        children.sort(key=lambda x: x["date"], reverse=True)
+        return children
+
+    def not_found(comment_id: str):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Comment with id '{comment_id}' does not exist"
+        )
+
+
+
 class DatasetStatus(str, Enum):
     REQUESTED = "requested"
     ACCEPTED = "accepted"
@@ -65,6 +104,51 @@ class Dataset(Document):
             "filename": self.filename,
             "url": self.url
         }
+    
+    def new_analysis_dict(self) -> dict:
+        toml_dict = self.to_dict()
+        toml_dict['acronym_aliases'] = ", ".join(toml_dict['acronym_aliases'])
+        toml_dict['authors'] = ", ".join(toml_dict['authors'])
+        toml_dict['tags'] = ", ".join(toml_dict['tags'])
+        toml_dict['submitter'] = f"{toml_dict['submitter']['name']} <{toml_dict['submitter']['email']}>"
+        return toml_dict
+
+    def new_analysis_example(self) -> str:
+        return \
+"""
+# [generic_info]
+# data_collection_year = "2022"
+# data_collection_tool = "CICFlowMeter-V3"
+# feature_extraction_tool = "CICFlowMeter-V3"
+# classes = 80
+# features = 80
+# known_issues = \"\"\"
+# Dataset is affected by issues described in: https://intrusion-detection.distrinet-research.be/WTMC2021/extended_doc.html
+# Wrong feature name: Unnamed: 0
+# Network features contains raw ip addresses and ports which are not ideal
+# Unstandard csv headers format (leading space)
+# \"\"\"
+# dataset_organization = \"\"\"
+# - e.g. per day
+# - e.g. Each class per file
+# Notes
+# \"\"\"
+# per_class_data = \"\"\"
+# {"Apple iTunes": 926,
+#  "Google Authentication": 872,
+#  "SUKL eRecept": 800,
+#  "Xiaomi Account API": 710,
+#  "Kaspersky": 700,
+#  "Redmine (CESNET, MFF UK, KIV ZCU)": 682}
+# \"\"\"
+
+# [dataset_analysis]
+# drift_workflow = "name_of_jupyter_notebook.ipynb"
+# drift_manual = "name_of_jupyter_notebook.ipynb"
+# redundancy = \"\"\"
+# ...
+# \"\"\"
+"""
 
     def get_file_path(self) -> str | None:
         if self.filename is None:
@@ -97,7 +181,10 @@ class Dataset(Document):
 
         try:
             os.mkdir(_path)
-            shutil.copy("analysis_example.toml", os.path.join(_path, "analysis.toml"))
+
+            with open(os.path.join(_path, "analysis.toml"), "w") as f:
+                toml.dump(self.new_analysis_dict(), f)
+                f.write(self.new_analysis_example())
         except OSError as exc:
             print(f"Creation of the directory {_path} failed: {str(exc)}")
             raise HTTPException(

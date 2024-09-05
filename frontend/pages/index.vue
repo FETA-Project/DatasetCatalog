@@ -47,7 +47,7 @@
                 <li class="flex gap-2"> <b>Authors: </b> 
                     <Chip v-for="author in slotProps.data.authors">{{ author }}</Chip>
                 </li>
-                <li><b>Date Submitted: </b> {{ slotProps.data.date_submitted }}</li>
+                <li><b>Date Submitted: </b> <FormatedDate :datetime="slotProps.data.date_submitted"/></li>
                 <li>
                     <b>Submitter: </b>
                     <ul>
@@ -72,6 +72,7 @@ import { useConfirm } from 'primevue/useconfirm'
 import { FilterMatchMode } from 'primevue/api'
 import MainMenu from '@/components/menu.vue'
 import { useDialog } from 'primevue/usedialog'
+import FormatedDate from '@/components/date.vue'
 
 const router = useRouter()
 
