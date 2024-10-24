@@ -4,7 +4,7 @@ import os
 from typing import Optional
 import pathlib
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, Request
 from fastapi.responses import FileResponse
 from pymongo.errors import DuplicateKeyError
 
@@ -12,9 +12,16 @@ from models import (Comment, Dataset, DatasetStatus, Submitter, User)
 from oauth2 import require_user, require_admin
 # from utils import disabled
 from werkzeug.utils import secure_filename
+import git
+from config import config
+
 
 api = APIRouter(prefix="/api")
 
+@api.get('/git_sync')
+async def git_sync():
+    git_repo = git.Repo(config.ANALYSIS_DIR)
+    git_repo.remotes.origin.pull()
 
 # === USERS ===
 
@@ -63,6 +70,7 @@ async def upload(
     paper_title: str = Form(""),
     authors: str = Form(""),
     description: str = Form(""),
+    format: str = Form(""),
     doi: str = Form(""),
     origins_doi: str = Form(""),
     submitter: str = Form(""),
@@ -74,6 +82,13 @@ async def upload(
     # TODO: add support for file upload from url
     # if no filename
     # download from url
+
+    found = await Dataset.find(Dataset.acronym == acronym).first_or_none()
+    if found:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Dataset with acronym '{acronym}' already exists"
+        )
 
     try:
         submitter = Submitter(json.loads(submitter))
@@ -101,6 +116,7 @@ async def upload(
             paper_title=paper_title,
             authors=authors,
             description=description,
+            format=format,
             doi=doi,
             origins_doi=origins_doi,
             submitter=submitter,
@@ -182,7 +198,7 @@ async def request_reject(acronym: str, user_email: str = Depends(require_user)):
 @api.get('/datasets')
 async def datasets():
     datasets = await Dataset.find(Dataset.status != DatasetStatus.REQUESTED).to_list()
-    return datasets
+    return [dataset.to_dict() for dataset in datasets]
 
 
 @api.get('/datasets/{acronym:path}')
@@ -191,8 +207,6 @@ async def dataset(acronym: str):
 
     if dataset is None:
         Dataset.not_found(acronym)
-
-    analysis = dataset.get_analysis()
 
     related = []
     origin = []
@@ -205,11 +219,10 @@ async def dataset(acronym: str):
         same_origin = await Dataset.find(Dataset.origins_doi == dataset.origins_doi).to_list()
 
     return {
-        'dataset': dataset,
+        'dataset': dataset.to_dict(),
         'related_datasets': [d.acronym for d in related if d.acronym != dataset.acronym],
         'origin_datasets': [d.acronym for d in origin if d.acronym != dataset.acronym],
         'same_origin_datasets': [d.acronym for d in same_origin if d.acronym != dataset.acronym],
-        'analysis': analysis if analysis is not None else {},
         'edit_analysis_url': dataset._git_edit_url()
     }
 
@@ -237,50 +250,48 @@ async def dataset_download(acronym: str):
 @api.post('/datasets/{acronym:path}/edit')
 async def dataset_edit(
     acronym: str,
-    acronym_aliases: Optional[str] = Form(None),
-    title: Optional[str] = Form(None),
-    paper_title: Optional[str] = Form(None),
-    authors: Optional[str] = Form(None),
-    description: Optional[str] = Form(None),
-    doi: Optional[str] = Form(None),
-    origins_doi: Optional[str] = Form(None),
-    submitter: Optional[str] = Form(None),
-    tags: Optional[str] = Form(None),
+    acronym_aliases: Optional[str] = Form(""),
+    title: Optional[str] = Form(""),
+    paper_title: Optional[str] = Form(""),
+    authors: Optional[str] = Form(""),
+    description: Optional[str] = Form(""),
+    format: Optional[str] = Form(""),
+    doi: Optional[str] = Form(""),
+    origins_doi: Optional[str] = Form(""),
+    submitter: Optional[str] = Form("{\"name\": \"\", \"email\": \"\"}"),
+    tags: Optional[str] = Form(""),
+    url: Optional[str] = Form(""),
 ):
     dataset = await Dataset.find(Dataset.acronym == acronym).first_or_none()
 
     if dataset is None:
         Dataset.not_found(acronym)
 
-    if acronym_aliases is not None:
-        dataset.acronym_aliases = acronym_aliases.split(",")
+    dataset.acronym_aliases = acronym_aliases.split(",")
 
-    if title is not None:
-        dataset.title = title
+    dataset.title = title
     
-    if paper_title is not None:
-        dataset.paper_title = paper_title
+    dataset.paper_title = paper_title
     
-    if authors is not None:
-        dataset.authors = authors.split(",")
+    dataset.authors = authors.split(",")
     
-    if description is not None:
-        dataset.description = description
+    dataset.description = description
+
+    dataset.format = format
     
-    if doi is not None:
-        dataset.doi = doi
+    dataset.doi = doi
     
-    if origins_doi is not None:
-        dataset.origins_doi = origins_doi
+    dataset.origins_doi = origins_doi
     
-    if submitter is not None:
-        dataset.submitter = Submitter(json.loads(submitter))
+    dataset.submitter = Submitter(json.loads(submitter))
     
-    if tags is not None:
-        dataset.tags = tags.split(",")
+    dataset.tags = tags.split(",")
+
+    dataset.url = url
 
     try:
         await dataset.save()
+        dataset.update_analysis()
     except Exception as exc:
         raise HTTPException(
         status_code=500,
@@ -289,6 +300,23 @@ async def dataset_edit(
 
     return {"message": f"Dataset {acronym} updated"}
 
+@api.post('/datasets/{acronym:path}/upload')
+async def dataset_upload_file(acronym: str, file: Optional[UploadFile | None] = File(None)):
+    dataset = await Dataset.find(Dataset.acronym == acronym).first_or_none()
+
+    if dataset is None:
+        Dataset.not_found(acronym)
+
+    if dataset.filename is not None:
+        os.remove(dataset.get_file_path())
+
+    dataset.filename = f'{secure_filename(acronym)}{pathlib.Path(file.filename).suffix}'
+    with open(dataset.get_file_path(), "wb") as f:
+        f.write(file.file.read())
+
+    await dataset.save()
+
+    return {"message": f"File for dataset {acronym} uploaded"}
 
 
 @api.delete('/datasets/{acronym:path}')
@@ -383,4 +411,4 @@ async def comments_delete(comment_id: str):
 
     return {"message": f"Comment {comment_id} deleted"}
 
-#TODO: edit and delete comment
+

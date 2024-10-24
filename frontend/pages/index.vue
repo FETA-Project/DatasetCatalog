@@ -11,7 +11,7 @@
         <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
             <div>
                 <Button label="Submit Dataset" icon="pi pi-ticket" class="mr-2" @click="showUpload" />
-                <Button label="Delete" icon="pi pi-trash" class="mr-2" severity="danger" @click="deleteData()" :disabled="!selectedData || !selectedData.length" />
+                <Button v-if="user && user.is_admin" label="Delete" icon="pi pi-trash" class="mr-2" severity="danger" @click="deleteData()" :disabled="!selectedData || !selectedData.length" />
             </div>
             <span class="p-input-icon-left">
                 <i class="pi pi-search" />
@@ -21,9 +21,10 @@
     </template>
     <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
     <Column expander style="width: 3rem"></Column>
+    <Column field="metadata" header="Metadata" hidden></Column>
     <Column field="acronym" header="Acronym" sortable></Column>
     <Column field="title" header="Title" sortable></Column>
-    <Column header="DOI">
+    <Column field="doi" header="DOI">
         <template #body="slotProps">
             <a :href="'https://doi.org/' + slotProps.data.doi" target="_blank">{{ slotProps.data.doi }}</a>
         </template>
@@ -80,6 +81,8 @@ const confirm = useConfirm()
 const toast = useToast()
 const dialog = useDialog()
 
+const user = ref(null)
+
 const selectedData = ref([])
 const expandedRows = ref([])
 
@@ -97,7 +100,10 @@ const get_datasets = () => {
   axios.get('/api/datasets')
     .then(response => {
       datasets.value = response.data
-      console.log(datasets.value)
+      datasets.value.forEach(d => {
+          d.metadata = JSON.stringify(d)
+      })
+    //   console.log(datasets.value)
     })
     .catch(error => {
       toast.add({
@@ -172,4 +178,12 @@ const showUpload = () => {
         }
     })
 }
+
+onMounted(() => { 
+    axios.get('/api/users/me')
+    .then(response => {
+        user.value = response.data
+    })
+    .catch()
+})
 </script>

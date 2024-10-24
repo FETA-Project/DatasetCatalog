@@ -39,8 +39,7 @@ onMounted(() => {
     axios.get('/api/users/me').then(response => {
         console.log(response.data)
         user.value = response.data
-        window.localStorage.setItem('user', user)
-    })
+    }).catch()
 })
 
 const logged_in = () => user.value !== null

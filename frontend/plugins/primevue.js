@@ -30,8 +30,9 @@ import Dropdown from 'primevue/dropdown'
 import MultiSelect from 'primevue/multiselect'
 import Badge from 'primevue/badge'
 import Tooltip from 'primevue/tooltip'
-import Accordion from 'primevue/accordion';
-import AccordionTab from 'primevue/accordiontab';
+import Accordion from 'primevue/accordion'
+import AccordionTab from 'primevue/accordiontab'
+import Checkbox from 'primevue/checkbox'
 
 
 export default defineNuxtPlugin((nuxtApp) => {
@@ -68,4 +69,5 @@ export default defineNuxtPlugin((nuxtApp) => {
   nuxtApp.vueApp.component('Badge', Badge)
   nuxtApp.vueApp.component('Accordion', Accordion)
   nuxtApp.vueApp.component('AccordionTab', AccordionTab)
+  nuxtApp.vueApp.component('Checkbox', Checkbox)
   })

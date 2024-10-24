@@ -1,6 +1,7 @@
 from datetime import datetime
 from enum import Enum
 import os
+import pathlib
 import shutil
 from threading import Thread
 from typing import Optional
@@ -69,12 +70,13 @@ class Submitter(TypedDict):
 
 
 class Dataset(Document):
-    acronym: Indexed(str, index_type=pymongo.TEXT, unique=True)
+    acronym: str
     acronym_aliases: Optional[list[str]] = []
     title: Optional[str] = "Unknown"
     paper_title: Optional[str] = "Unknown"
     authors: Optional[list[str]] = ["Unknown"]
     description: Optional[str] = ""
+    format: Optional[str] = ""
     doi: Optional[str] = ""
     origins_doi: Optional[str] =""
     submitter: Submitter
@@ -89,12 +91,14 @@ class Dataset(Document):
 
     def to_dict(self) -> dict:
         return {
+            "id": str(self.id),
             "acronym": self.acronym,
             "acronym_aliases": self.acronym_aliases,
             "title": self.title,
             "paper_title": self.paper_title,
             "authors": self.authors,
             "description": self.description,
+            "format": self.format,
             "doi": self.doi,
             "origins_doi": self.origins_doi,
             "date_submitted": self.date_submitted,
@@ -102,53 +106,20 @@ class Dataset(Document):
             "status": self.status.value,
             "tags": self.tags,
             "filename": self.filename,
-            "url": self.url
+            "url": self.url,
+            "analysis": self.get_analysis()
         }
     
-    def new_analysis_dict(self) -> dict:
+    def to_toml_dict(self) -> dict:
         toml_dict = self.to_dict()
         toml_dict['acronym_aliases'] = ", ".join(toml_dict['acronym_aliases'])
         toml_dict['authors'] = ", ".join(toml_dict['authors'])
         toml_dict['tags'] = ", ".join(toml_dict['tags'])
         toml_dict['submitter'] = f"{toml_dict['submitter']['name']} <{toml_dict['submitter']['email']}>"
+        toml_dict.pop('id')
+        toml_dict.pop('status')
+        toml_dict.pop('analysis')
         return toml_dict
-
-    def new_analysis_example(self) -> str:
-        return \
-"""
-# [generic_info]
-# data_collection_year = "2022"
-# data_collection_tool = "CICFlowMeter-V3"
-# feature_extraction_tool = "CICFlowMeter-V3"
-# classes = 80
-# features = 80
-# known_issues = \"\"\"
-# Dataset is affected by issues described in: https://intrusion-detection.distrinet-research.be/WTMC2021/extended_doc.html
-# Wrong feature name: Unnamed: 0
-# Network features contains raw ip addresses and ports which are not ideal
-# Unstandard csv headers format (leading space)
-# \"\"\"
-# dataset_organization = \"\"\"
-# - e.g. per day
-# - e.g. Each class per file
-# Notes
-# \"\"\"
-# per_class_data = \"\"\"
-# {"Apple iTunes": 926,
-#  "Google Authentication": 872,
-#  "SUKL eRecept": 800,
-#  "Xiaomi Account API": 710,
-#  "Kaspersky": 700,
-#  "Redmine (CESNET, MFF UK, KIV ZCU)": 682}
-# \"\"\"
-
-# [dataset_analysis]
-# drift_workflow = "name_of_jupyter_notebook.ipynb"
-# drift_manual = "name_of_jupyter_notebook.ipynb"
-# redundancy = \"\"\"
-# ...
-# \"\"\"
-"""
 
     def get_file_path(self) -> str | None:
         if self.filename is None:
@@ -167,6 +138,26 @@ class Dataset(Document):
     
         return Analysis(_path)
 
+    def update_analysis(self) -> None:
+        _analysis = self.get_analysis()
+        if _analysis is None:
+            self.create_analysis()
+            return
+
+        _analysis.analysis.update(self.to_toml_dict())
+
+        _path = self.get_analysis_path()
+        commented_lines = []
+        with open(pathlib.Path(_path, 'analysis.toml'), 'r') as f:
+            lines = f.readlines()
+            commented_lines = [line for line in lines if line.startswith("#")]
+
+        with open(pathlib.Path(_path, 'analysis.toml'), 'w') as f:
+            toml.dump(_analysis.analysis, f)
+            f.writelines(commented_lines)
+
+        Thread(target=self._git_push).start()
+
     def create_analysis(self) -> None:
         # auth: glpat-N479bezbS7zPZsFnMMxL
         if not os.path.exists(config.ANALYSIS_DIR):
@@ -182,9 +173,10 @@ class Dataset(Document):
         try:
             os.mkdir(_path)
 
-            with open(os.path.join(_path, "analysis.toml"), "w") as f:
-                toml.dump(self.new_analysis_dict(), f)
-                f.write(self.new_analysis_example())
+            shutil.copy(
+                pathlib.Path(config.ANALYSIS_DIR, 'analysis_example.toml'),
+                pathlib.Path(_path, 'analysis.toml')
+            )
         except OSError as exc:
             print(f"Creation of the directory {_path} failed: {str(exc)}")
             raise HTTPException(
@@ -192,7 +184,7 @@ class Dataset(Document):
                 detail=f"Could not create directory '{_path}': {str(exc)}"
             )
 
-        Thread(target=self._git_push).start()
+        self.update_analysis()
 
     def _git_push(self):
         try:

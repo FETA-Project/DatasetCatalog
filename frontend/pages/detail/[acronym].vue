@@ -11,7 +11,8 @@
         </h1>
 
         <h2 class="flex gap-2">
-            <Button @click="downloadDataset(dataset.acronym)" label="Download" icon="pi pi-download" severity="success" />
+            <Button v-if="dataset.filename" @click="downloadDataset(dataset.acronym)" label="Download" icon="pi pi-download" severity="success" />
+            <Button v-if="dataset.url" @click="getURL(dataset.url, true)" label="Open URL" icon="pi pi-link" severity="success" />
             <Button @click="editDataset(dataset.acronym)" label="Edit Info" icon="pi pi-pencil" />
             <Button @click="editAnalysis(dataset.acronym)" label="Edit Analysis" icon="pi pi-external-link" severity="secondary" />
         </h2>
@@ -56,52 +57,22 @@
                     </ul>
                 </li>
                 <li> <b>Description: </b> {{ dataset.description }} </li>
+                <li> <b>Format: </b> {{ dataset.format }} </li>
                 <li> <b>DOI: </b> <a :href="dataset.doi" target="_blank">{{ dataset.doi }}</a></li>
                 <li> <b>Origins DOI: </b> <a :href="dataset.origins_doi" target="_blank">{{ dataset.origins_doi }}</a></li>
                 <li class="flex gap-2"> <b>Tags: </b> 
                     <!-- <div class="flex gap-2"><Chip v-for="tag in dataset.tags">{{ tag }}</Chip></div> -->
                     <Chip v-for="tag in dataset.tags">{{ tag }}</Chip>
                 </li>
-                <li> <b>Data URL: </b> <a :href="dataset.url" target="_blank">{{ dataset.url }}</a></li>
+                <li> <b>Data URL: </b> <a :href="getURL(dataset.url)" about="_blank">{{ dataset.url }}</a></li>
+                <li> <b>Data File: </b> {{ dataset.filename }} </li>
             </ul>
         </Fieldset>
-        <Fieldset legend="Comment Section" :toggleable="true" collapsed>
+        <Fieldset legend="Discussion" :toggleable="true" collapsed>
             <Button label="Add Comment" icon="pi pi-plus" severity="secondary" @click="createComment(dataset.acronym)" style="margin-bottom: 0.3em" />
             <Comments @signal="handleSignal" :comments="comments" :key="commentsKey"/>
         </Fieldset>
-        <!-- <Fieldset legend="Base Info" :toggleable="true">
-            <ul style="list-style: none">
-                <template v-for="(value, key) in dataset.analysis">
-                    <li v-if="!(typeof value == 'object')">
-                        <b>{{ key }}: </b> 
-                        <a v-if="typeof value == 'string' && value.endsWith('.ipynb')" :href="jupyterURL(value)" target="_blank">{{ value }}</a>
-                        <span v-else>{{ value }} - {{ check_if_json(value) }}</span>
-                    </li>
-                </template>
-            </ul>
-        </Fieldset> -->
-        <template v-for="(field_value, field_key) in analysis.analysis">
-            <Fieldset v-if="typeof field_value == 'object'" :legend="field_key.replaceAll('_', ' ')" :toggleable="true">
-                <ul style="list-style: none;" class="flex flex-column gap-1">
-                    <li v-for="(value, key) in field_value">
-                        <b>{{ key.replaceAll("_", " ") }}: </b> 
-
-                        <a v-if="typeof value =='string' && value.endsWith('.ipynb')" :href="jupyterURL(dataset.acronym + '/' + value)" target="_blank">{{ value }}</a>
-                        <table v-else-if="check_if_json(value)" class="styled-table">
-                            <tbody>
-                                <tr v-for="(field, header) in JSON.parse(value)">
-                                    <td>{{ header }}</td>
-                                    <td>{{ field }}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                        <!-- <span v-else-if="typeof value == 'string'" style="white-space: pre">{{ value }}</span> -->
-                        <!-- <pre v-else-if="check_if_json(value)">{{ JSON.stringify(JSON.parse(value), null, 2) }}</pre> -->
-                        <span v-else style="white-space: pre">{{ value }}</span>
-                    </li>
-                </ul>
-            </Fieldset>
-        </template>
+        <Analysis :analysis="analysis.analysis" :acronym="dataset.acronym"/>
     </div>
 </template>
 
@@ -113,6 +84,7 @@ import { useDialog } from 'primevue/usedialog'
 import Chip from 'primevue/chip';
 import FormatedDate from '@/components/date.vue'
 import Comments from '@/components/comments.vue'
+import Analysis from '@/components/analysis.vue'
 
 const toast = useToast()
 const dataset_acronym = ref("Unknown")
@@ -126,31 +98,11 @@ const route = useRoute()
 const comments = ref({})
 const commentsKey = ref(0)
 
+const user = ref(null);
+
 const dialog = useDialog()
 
 const CreateCommentDialog = defineAsyncComponent(() => import('@/components/create_comment.vue'))
-
-const openRepo = (repo) => {window.open("https://doi.org/" + repo, "_blank")}
-
-const jupyterURL = (path) => {return "/jupyter/notebooks/" + path}
-
-const check_if_json = (string) => {
-
-    if (typeof string != "string") {
-        return false
-    }
-
-    if (!string.includes("{") || !string.includes("}")) {
-        return false
-    }
-
-    try {
-        JSON.parse(string)
-        return true
-    } catch (e) {
-        return false
-    }
-}
 
 const showDetail = (acronym) => {
     navigateTo(`/detail/${encodeURIComponent(acronym)}`)
@@ -203,13 +155,15 @@ const get_dataset = (acronym) => {
         //   dataset.value.analysis = {}
           dataset.value = response_dataset.data.dataset
           dataset.value.authors = dataset.value.authors.filter(author => author !== "")
+          dataset.value.acronym_aliases = dataset.value.acronym_aliases.filter(alias => alias !== "")
           dataset.value.tags = dataset.value.tags.filter(tag => tag !== "")
-          analysis.value = response_dataset.data.analysis
+          analysis.value = response_dataset.data.dataset.analysis
           edit_analysis_url.value = response_dataset.data.edit_analysis_url
           related_datasets.value = response_dataset.data.related_datasets
           origin_datasets.value = response_dataset.data.origin_datasets
           same_origin_datasets.value = response_dataset.data.same_origin_datasets
           comments.value = response_comments.data
+          console.log(analysis.value)
       }))
       .catch(error => {
             toast.add({
@@ -230,13 +184,20 @@ const editAnalysis = () => {
     window.open(edit_analysis_url.value, "_blank")
 }
 
-const downloadDataset = (acronym) => {
-    if(dataset.value.url) {
-        window.open(dataset.value.url, "_blank")
-        return
+const getURL = (url, open = false) => {
+    let _url = url
+    if(url) {
+        if (!/^https?:\/\//i.test(url)) {
+            _url = `https://${url}`, "_blank";
+        }
+
+        return open ? window.open(_url, "_blank") : _url;
     } else {
         console.log("No URL - trying local file")
     }
+}
+
+const downloadDataset = (acronym) => {
     // axios.get(`/api/datasets/${encodeURIComponent(acronym)}/file`)
     axios.get(`/api/files/${encodeURIComponent(acronym)}`)
         .then(response => {
@@ -268,6 +229,12 @@ onMounted(() => {
     // dataset_title.value = "dataset_example_name"
     dataset_acronym.value = decodeURIComponent(route.params.acronym)
     get_dataset(dataset_acronym.value)
+    axios.get('/api/users/me')
+        .then(response => {
+            console.log(response.data)
+            user.value = response.data
+        })
+        .catch()
 })
 </script>
 

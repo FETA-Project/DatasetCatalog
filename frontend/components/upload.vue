@@ -4,7 +4,7 @@
       <Toast position="bottom-right" />
       <div id="acronym" :class="{ error: acronymError }" class="flex flex-column gap-2">
         <label for="title">
-            <i class="pi pi-info-circle" v-tooltip.right="'Acronym of the dataset'" />
+            <i class="pi pi-info-circle" v-tooltip.right="'Short name of the dataset (e.g. CESNET-TLS22) which is used as the unique identifier'" />
             Dataset Acronym*
         </label>
         <InputText
@@ -21,7 +21,7 @@
       </div>
       <div id="acronym_aliases" class="flex flex-column gap-2">
         <label for="acronym_aliases">
-            <i class="pi pi-info-circle" v-tooltip.right="'Acronym Aliases (words split by comma).'" />
+            <i class="pi pi-info-circle" v-tooltip.right="'Additional alias for the Dataset Acronym (e.g. CESNET-TLS22-XS).\nUsed to filter the different subsection of the original dataset'" />
             Dataset Acronym Aliases
         </label>
         <div class="card p-fluid p-hidden-label">
@@ -38,7 +38,7 @@
       </div>
       <div id="title" :class="{ error: titleError }" class="flex flex-column gap-2">
         <label for="title">
-            <i class="pi pi-info-circle" v-tooltip.right="'Title of the dataset'" />
+            <i class="pi pi-info-circle" v-tooltip.right="'Full name of the dataset'" />
             Dataset Title
         </label>
         <InputText
@@ -54,7 +54,7 @@
       </div>
       <div id="name" :class="{ error: nameError }" class="flex flex-column gap-2">
         <label for="name">
-            <i class="pi pi-info-circle" v-tooltip.right="'Name and surname of the submitter.'" />
+            <i class="pi pi-info-circle" v-tooltip.right="'Full name of the submitter'" />
             Submitter Name
         </label>
         <InputText
@@ -70,7 +70,7 @@
       </div>
       <div id="email" :class="{ error: emailError }" class="flex flex-column gap-2">
         <label for="email">
-            <i class="pi pi-info-circle" v-tooltip.right="'Email of the submitter.'" />
+            <i class="pi pi-info-circle" v-tooltip.right="'Email of the submitter'" />
             Submitter Email
         </label>
         <InputText
@@ -86,7 +86,7 @@
       </div>
       <div id="paperTitle" :class="{ error: paperTitleError }" class="flex flex-column gap-2">
         <label for="paperTitle">
-            <i class="pi pi-info-circle" v-tooltip.right="'Title of the dataset'" />
+            <i class="pi pi-info-circle" v-tooltip.right="'Full title of the paper describing the dataset'" />
             Paper Title
         </label>
         <InputText
@@ -102,7 +102,7 @@
       </div>
       <div id="datasetAuthors" :class="{ error: authorsError }" class="flex flex-column gap-2">
         <label for="authors">
-            <i class="pi pi-info-circle" v-tooltip.right="'Authors of the dataset (split by a comma).'" />
+            <i class="pi pi-info-circle" v-tooltip.right="'Authors of the dataset (comma separated)'" />
             Dataset Authors
         </label>
         <div class="card p-fluid p-hidden-label">
@@ -123,7 +123,7 @@
       </div>
       <div id="description" class="flex flex-column gap-2">
         <label for="Description">
-            <i class="pi pi-info-circle" v-tooltip.right="'Description of the dataset.'" />
+            <i class="pi pi-info-circle" v-tooltip.right="'Short overview description of the dataset'" />
             Description
         </label>
         <TextArea
@@ -136,9 +136,22 @@
           v-tooltip.bottom="'The description of the dataset.'"
         />
       </div>
+      <div id="format" class="flex flex-column gap-2">
+        <label for="format">
+            <i class="pi pi-info-circle" v-tooltip.right="'Identify file format of the dataset (e.g. pcap, json, txt, …)'" />
+            Dataset Format
+        </label>
+        <InputText
+                id="format"
+                v-model="format"
+                :class="{ error: formatError }"
+                aria-describedby="format-help"
+                placeholder="Format"
+                /> 
+      </div>
       <div id="tags" class="flex flex-column gap-2">
         <label for="tags">
-            <i class="pi pi-info-circle" v-tooltip.right="'Tags (words split by comma) to describe the dataset.'" />
+            <i class="pi pi-info-circle" v-tooltip.right="'Use tags to categorize the dataset (comma separated)'" />
             Tags
         </label>
         <div class="card p-fluid p-hidden-label">
@@ -168,7 +181,7 @@
       </div>
       <div id="originsDoi" class="flex flex-column gap-2">
         <label for="originsDoi">
-            <i class="pi pi-info-circle" v-tooltip.right="'Origins DOI of the dataset.'" />
+            <i class="pi pi-info-circle" v-tooltip.right="'DOI of the original dataset'" />
             Origins DOI
         </label>
         <InputText
@@ -179,7 +192,15 @@
                 placeholder="Origins DOI"
                 /> 
       </div>
-      <TabView id="dataset-upload">
+      <div id="uploadLater" class="flex gap-2">
+        <label for="uploadLater">
+            <i class="pi pi-info-circle" v-tooltip.right="'Upload a file or URL later.'" />
+            Upload Later
+        </label>
+        <Checkbox id="uploadLater" v-model="uploadLater" :binary="true" />
+      </div>
+      <Button v-if="uploadLater" label="Submit" icon="pi pi-upload" @click="makeRequest" />
+      <TabView v-else id="dataset-upload">
         <TabPanel header="Local File">
           <FileUpload
             name="upload"
@@ -246,6 +267,8 @@ const authors = ref("");
 const authorsError = ref(false);
 const description = ref("");
 const descriptionError = ref(false);
+const format = ref("");
+const formatError = ref(false);
 const doi = ref("");
 const doiError = ref(false);
 const originsDoi = ref("");
@@ -259,6 +282,7 @@ const url = ref("");
 const urlError = ref(false);
 const fileUpload = ref(null);
 const tags = ref();
+const uploadLater = ref(false);
 
 function clearUpload() {
   fileUpload.value.clear()
@@ -284,6 +308,7 @@ async function makeRequest(event) {
   formData.append("paper_title", paperTitle.value);
   formData.append("authors", authors.value === undefined ? [] : authors.value);
   formData.append("description", description.value);
+  formData.append("format", format.value);
   formData.append("doi", doi.value);
   formData.append("origins_doi", originsDoi.value);
   formData.append("submitter", JSON.stringify({
