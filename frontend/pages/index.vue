@@ -101,7 +101,19 @@ const get_datasets = () => {
     .then(response => {
       datasets.value = response.data
       datasets.value.forEach(d => {
-          d.metadata = JSON.stringify(d)
+          // add metadata to datasets, replace underscores with spaces in keys
+          d.metadata = JSON.stringify(d, function (key, value) {
+              if (value && typeof value === 'object') {
+                var replacement = {};
+                for (var k in value) {
+                  if (Object.hasOwnProperty.call(value, k)) {
+                    replacement[k && k.replaceAll("_", " ")] = value[k];
+                  }
+                }
+                return replacement;
+              }
+              return value;
+            });
       })
     //   console.log(datasets.value)
     })

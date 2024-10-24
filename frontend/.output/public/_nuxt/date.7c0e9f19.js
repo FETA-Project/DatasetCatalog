@@ -1,0 +1,1 @@
+import{o as n,e as o,t as c}from"./entry.18922f6a.js";const i={__name:"date",props:{datetime:{type:String,required:!0}},setup(a){const r=e=>{const t=new Date(e);return`${t.toLocaleDateString()} ${t.toLocaleTimeString()}`};return(e,t)=>(n(),o("span",null,c(r(a.datetime)),1))}};export{i as _};
