@@ -243,6 +243,7 @@ const toast = useToast();
 const dialogRef = inject("dialogRef")
 
 const dataset_acronym = ref("");
+const dataset_aliases = ref("");
 const dataset = ref();
 
 const acronym = ref("");
@@ -279,8 +280,8 @@ watch(acronym, (value) => {
   acronymError.value = value.length === 0
 })
 
-const get_dataset = (_acronym) => {
-    axios.get(`/api/datasets/${encodeURIComponent(_acronym)}`)
+const get_dataset = (_acronym, _aliases) => {
+    axios.get(`/api/datasets/${encodeURIComponent(_acronym)}/${_aliases}`)
       .then(response => {
           dataset.value = response.data.dataset
           console.log(dataset.value)
@@ -328,13 +329,17 @@ async function editDataset() {
   formData.append("url", url.value);
 
   await axios
-    .post(`/api/datasets/${encodeURIComponent(dataset_acronym.value)}/edit`, formData, {
+    .post(`/api/datasets/${encodeURIComponent(dataset_acronym.value)}/${encodeURIComponent(dataset_aliases.value)}/edit`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data', // Make sure to set the correct content type
       },
     })
     .then(() => {
-      navigateTo(`/detail/${encodeURIComponent(dataset_acronym.value)}`)
+        let new_aliases = acronym_aliases.value
+        if (new_aliases == "") {
+            new_aliases = acronym.value
+        }
+      navigateTo(`/detail/${encodeURIComponent(dataset_acronym.value)}/${encodeURIComponent(new_aliases)}`)
     })
     .catch((error) => {
       console.log(error)
@@ -363,7 +368,7 @@ async function uploadFile(event) {
   });
 
   await axios
-    .post(`/api/datasets/${encodeURIComponent(dataset_acronym.value)}/upload`, formData, {
+    .post(`/api/datasets/${encodeURIComponent(dataset_acronym.value)}/${encodeURIComponent(dataset_aliases.value)}/upload`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data', // Make sure to set the correct content type
       },
@@ -378,7 +383,7 @@ async function uploadFile(event) {
         life: 3000,
       });
       clearUpload()
-        axios.get(`/api/datasets/${encodeURIComponent(dataset_acronym.value)}`)
+        axios.get(`/api/datasets/${encodeURIComponent(dataset_acronym.value)}/${encodeURIComponent(dataset_aliases.value)}`)
           .then(response => {
             dataset.value.filename = response.data.dataset.filename
           })
@@ -406,7 +411,11 @@ async function uploadFile(event) {
 onMounted(() => { 
     // dataset_title.value = "dataset_example_name"
     dataset_acronym.value = decodeURIComponent(route.params.acronym)
-    get_dataset(dataset_acronym.value)
+    dataset_aliases.value = decodeURIComponent(route.params.aliases)
+    if (dataset_aliases.value == dataset_acronym.value) {
+        dataset_aliases.value = ""
+    }
+    get_dataset(dataset_acronym.value, dataset_aliases.value)
 })
 
 </script>

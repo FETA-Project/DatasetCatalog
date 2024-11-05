@@ -93,7 +93,7 @@ class Dataset(Document):
         return {
             "id": str(self.id),
             "acronym": self.acronym,
-            "acronym_aliases": self.acronym_aliases,
+            "acronym_aliases": sorted(self.acronym_aliases),
             "title": self.title,
             "paper_title": self.paper_title,
             "authors": self.authors,
@@ -109,7 +109,10 @@ class Dataset(Document):
             "url": self.url,
             "analysis": self.get_analysis()
         }
-    
+
+    def get_name(self) -> str:
+        return secure_filename(f"{self.acronym}.{'.'.join(sorted(self.acronym_aliases))}")
+
     def to_toml_dict(self) -> dict:
         toml_dict = self.to_dict()
         toml_dict['acronym_aliases'] = ", ".join(toml_dict['acronym_aliases'])
@@ -128,7 +131,7 @@ class Dataset(Document):
         return os.path.join(config.DATASET_DIR, self.filename)
 
     def get_analysis_path(self) -> str:
-        return os.path.join(config.ANALYSIS_DIR, secure_filename(self.acronym))
+        return os.path.join(config.ANALYSIS_DIR, self.get_name())
 
     def get_analysis(self) -> Optional['Analysis']:
         _path = os.path.join(self.get_analysis_path(), 'analysis.toml')
@@ -138,7 +141,11 @@ class Dataset(Document):
     
         return Analysis(_path)
 
-    def update_analysis(self) -> None:
+    def update_analysis(self, old_path: str|None = None) -> None:
+        if old_path is not None:
+            # FIXME: what if this fails?
+            os.rename(old_path, self.get_analysis_path())
+
         _analysis = self.get_analysis()
         if _analysis is None:
             self.create_analysis()
@@ -189,8 +196,8 @@ class Dataset(Document):
     def _git_push(self):
         try:
             git_repo = git.Repo(config.ANALYSIS_DIR)
-            git_repo.index.add([secure_filename(self.acronym)])
-            git_repo.index.commit(f"Add analysis for {self.acronym}")
+            git_repo.index.add([self.get_name()])
+            git_repo.index.commit(f"Add analysis for {self.get_name()}")
             git_repo.remotes.origin.pull()
             git_repo.remotes.origin.push().raise_if_error()
         except Exception as exc:
@@ -201,7 +208,7 @@ class Dataset(Document):
             )
 
     def _git_edit_url(self):
-        _edit = f"/-/edit/main/{secure_filename(self.acronym)}/analysis.toml?ref_type=heads"
+        _edit = f"/-/edit/main/{self.get_name()}/analysis.toml?ref_type=heads"
         return f"{config.GIT_URL}{_edit}"
         #https://gitlab.com/tranquiloSan/katoda-test/-/edit/main/asdf/analysis.toml?ref_type=heads
 
