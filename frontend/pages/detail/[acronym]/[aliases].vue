@@ -106,6 +106,9 @@ const dialog = useDialog()
 const CreateCommentDialog = defineAsyncComponent(() => import('@/components/create_comment.vue'))
 
 const showDetail = (acronym, aliases) => {
+    if (aliases == "") {
+        aliases = acronym
+    }
     navigateTo(`/detail/${encodeURIComponent(acronym)}/${encodeURIComponent(aliases)}`)
 }
 
