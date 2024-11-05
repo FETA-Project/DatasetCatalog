@@ -11,29 +11,29 @@
         </h1>
 
         <h2 class="flex gap-2">
-            <Button v-if="dataset.filename" @click="downloadDataset(dataset.acronym)" label="Download" icon="pi pi-download" severity="success" />
+            <Button v-if="dataset.filename" @click="downloadDataset(dataset.acronym, dataset.acronym_aliases)" label="Download" icon="pi pi-download" severity="success" />
             <Button v-if="dataset.url" @click="getURL(dataset.url, true)" label="Open URL" icon="pi pi-link" severity="success" />
-            <Button @click="editDataset(dataset.acronym)" label="Edit Info" icon="pi pi-pencil" />
+            <Button @click="editDataset(dataset.acronym, dataset.acronym_aliases)" label="Edit Info" icon="pi pi-pencil" />
             <Button @click="editAnalysis(dataset.acronym)" label="Edit Analysis" icon="pi pi-external-link" severity="secondary" />
         </h2>
         <Fieldset legend="Related Datasets" :toggleable="true" collapsed>
             <ul class="flex flex-column gap-2">
                 <div v-if="origin_datasets.length > 0">
                     <b>Origin Datasets</b>
-                    <li v-for="acronym in origin_datasets">
-                        <span class="detail-link" @click="showDetail(acronym)">{{ acronym }}</span>
+                    <li v-for="dataset in origin_datasets">
+                        <span class="detail-link" @click="showDetail(dataset.acronym, dataset.aliases)">{{ dataset.acronym+'['+dataset.aliases+']'}}</span>
                     </li>
                 </div>
                 <div v-if="related_datasets.length > 0">
                     <b>Related Datasets</b>
-                    <li v-for="acronym in related_datasets">
-                        <span class="detail-link" @click="showDetail(acronym)">{{ acronym }}</span>
+                    <li v-for="dataset in related_datasets">
+                        <span class="detail-link" @click="showDetail(dataset.acronym, dataset.aliases)">{{ dataset.acronym+'['+dataset.aliases+']'}}</span>
                     </li>
                 </div>
                 <div v-if="same_origin_datasets.length > 0">
                     <b>Datasets With the Same Origin</b>
-                    <li v-for="acronym in same_origin_datasets">
-                        <span class="detail-link" @click="showDetail(acronym)">{{ acronym }}</span>
+                    <li v-for="dataset in same_origin_datasets">
+                        <span class="detail-link" @click="showDetail(dataset.acronym, dataset.aliases)">{{ dataset.acronym+'['+dataset.aliases+']'}}</span>
                     </li>
                 </div>
             </ul>
@@ -88,6 +88,7 @@ import Analysis from '@/components/analysis.vue'
 
 const toast = useToast()
 const dataset_acronym = ref("Unknown")
+const dataset_aliases = ref("Unknown")
 const dataset = ref()
 const related_datasets = ref()
 const origin_datasets = ref()
@@ -104,8 +105,8 @@ const dialog = useDialog()
 
 const CreateCommentDialog = defineAsyncComponent(() => import('@/components/create_comment.vue'))
 
-const showDetail = (acronym) => {
-    navigateTo(`/detail/${encodeURIComponent(acronym)}`)
+const showDetail = (acronym, aliases) => {
+    navigateTo(`/detail/${encodeURIComponent(acronym)}/${encodeURIComponent(aliases)}`)
 }
 
 const handleSignal = (payload) => {
@@ -146,10 +147,14 @@ const createComment = (belongs_to) => {
     
 }
 
-const get_dataset = (acronym) => {
+const get_dataset = (acronym, aliases) => {
+    console.log("get")
+    console.log(acronym)
+    console.log(aliases)
     axios.all([
-        axios.get(`/api/datasets/${encodeURIComponent(acronym)}`),
-        axios.get(`/api/comments/${encodeURIComponent(acronym)}`)
+        axios.get(`/api/datasets/${encodeURIComponent(acronym)}/${encodeURIComponent(aliases)}`),
+        // axios.get(`/api/comments/${encodeURIComponent(acronym)}/${encodeURIComponent(aliases)}`),
+        axios.get(`/api/comments/${encodeURIComponent(acronym)}`),
     ])
       .then(axios.spread((response_dataset, response_comments) => {
         //   dataset.value.analysis = {}
@@ -175,8 +180,11 @@ const get_dataset = (acronym) => {
       })
 }
 
-const editDataset = (acronym) => {
-    navigateTo(`/edit/${encodeURIComponent(acronym)}`)
+const editDataset = (acronym, aliases) => {
+    if (aliases == "") {
+        aliases = acronym
+    }
+    navigateTo(`/edit/${encodeURIComponent(acronym)}/${encodeURIComponent(aliases)}`)
 }
 
 // const editAnalysis = (acronym) => {
@@ -197,9 +205,9 @@ const getURL = (url, open = false) => {
     }
 }
 
-const downloadDataset = (acronym) => {
+const downloadDataset = (acronym, aliases) => {
     // axios.get(`/api/datasets/${encodeURIComponent(acronym)}/file`)
-    axios.get(`/api/files/${encodeURIComponent(acronym)}`)
+    axios.get(`/api/files/${encodeURIComponent(acronym)}/${encodeURIComponent(aliases)}`)
         .then(response => {
             const blob = new Blob([response.data], { type: response.headers['content-type'] });
             const url = window.URL.createObjectURL(blob);
@@ -228,7 +236,11 @@ const downloadDataset = (acronym) => {
 onMounted(() => { 
     // dataset_title.value = "dataset_example_name"
     dataset_acronym.value = decodeURIComponent(route.params.acronym)
-    get_dataset(dataset_acronym.value)
+    dataset_aliases.value = decodeURIComponent(route.params.aliases)
+    if (dataset_aliases.value == dataset_acronym.value) {
+        dataset_aliases.value = ""
+    }
+    get_dataset(dataset_acronym.value, dataset_aliases.value)
     axios.get('/api/users/me')
         .then(response => {
             console.log(response.data)

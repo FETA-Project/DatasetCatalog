@@ -23,6 +23,13 @@
     <Column expander style="width: 3rem"></Column>
     <Column field="metadata" header="Metadata" hidden></Column>
     <Column field="acronym" header="Acronym" sortable></Column>
+    <Column field="acronym_aliases" header="Acronym Aliases" sortable.multiple>
+      <template #body="slotProps">
+        <div class="flex gap-1">
+            <Chip v-for="alias in slotProps.data.acronym_aliases" :label="alias"></Chip>
+        </div>
+      </template>
+    </Column>
     <Column field="title" header="Title" sortable></Column>
     <Column field="doi" header="DOI">
         <template #body="slotProps">
@@ -38,7 +45,7 @@
     </Column>
     <Column>
         <template #body="slotProps">
-            <Button @click="showDetail(slotProps.data.acronym)" label="Details" icon="pi pi-info-circle" rounded outlined />
+            <Button @click="showDetail(slotProps.data.acronym, slotProps.data.acronym_aliases)" label="Details" icon="pi pi-info-circle" rounded outlined />
         </template>
     </Column>
     <template #expansion="slotProps">
@@ -131,14 +138,18 @@ onMounted(() => {
     get_datasets()
 })
 
-const showDetail = (acronym) => {
-    navigateTo(`/detail/${encodeURIComponent(acronym)}`)
+const showDetail = (acronym, aliases) => {
+    console.log(acronym, aliases)
+    if(aliases == "") {
+        aliases = acronym
+    }
+    navigateTo(`/detail/${encodeURIComponent(acronym)}/${encodeURIComponent(aliases)}`)
 }
 
 const deleteData = () => {
     let to_delete = []
     selectedData.value.forEach(d => {
-        to_delete.push(d.acronym)
+        to_delete.push({'acronym': d.acronym, 'aliases': d.acronym_aliases})
     });
     confirm.require({
         message: `Are you sure you want to delete ${to_delete.length} files`,
@@ -146,13 +157,13 @@ const deleteData = () => {
         icon: 'pi pi-exclemation-triangle',
         accept: () => {
             selectedData.value = null
-            to_delete.forEach(acronym => {
-                axios.delete(`/api/datasets/${acronym}`)
+            to_delete.forEach(d => {
+                axios.delete(`/api/datasets/${encodeURIComponent(d.acronym)}/${encodeURIComponent(d.aliases)}`)
                     .then(() => {
                         toast.add({
                             severity: 'success',
                             summary: 'Delete Successful',
-                            detail: `Dataset ${acronym} deleted successfully.`,
+                            detail: `Dataset ${d.acronym}/${d.aliases} deleted successfully.`,
                             life: 3000
                             })
                         get_datasets()

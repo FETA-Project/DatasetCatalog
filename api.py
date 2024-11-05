@@ -83,7 +83,8 @@ async def upload(
     # if no filename
     # download from url
 
-    found = await Dataset.find(Dataset.acronym == acronym).first_or_none()
+    acronym_aliases_list = sorted(acronym_aliases.split(","))
+    found = await Dataset.find(Dataset.acronym == acronym, Dataset.acronym_aliases == acronym_aliases_list).first_or_none()
     if found:
         raise HTTPException(
             status_code=400,
@@ -94,7 +95,6 @@ async def upload(
         submitter = Submitter(json.loads(submitter))
         tags = tags.split(",")
         authors = authors.split(",")
-        acronym_aliases = acronym_aliases.split(",")
     except Exception as exc:
         raise HTTPException(
         status_code=400,
@@ -111,7 +111,7 @@ async def upload(
     try:
         dataset = Dataset(
             acronym=acronym,
-            acronym_aliases=acronym_aliases,
+            acronym_aliases=acronym_aliases_list,
             title=title,
             paper_title=paper_title,
             authors=authors,
@@ -201,10 +201,11 @@ async def datasets():
     return [dataset.to_dict() for dataset in datasets]
 
 
-@api.get('/datasets/{acronym:path}')
-async def dataset(acronym: str):
-    dataset = await Dataset.find(Dataset.acronym == acronym).first_or_none()
-
+@api.get('/datasets/{acronym:path}/{aliases:path}')
+async def dataset(acronym: str, aliases: str):
+    aliases_list = sorted(aliases.split(","))
+    dataset = await Dataset.find(Dataset.acronym == acronym, Dataset.acronym_aliases == aliases_list).first_or_none()
+    
     if dataset is None:
         Dataset.not_found(acronym)
 
@@ -220,16 +221,17 @@ async def dataset(acronym: str):
 
     return {
         'dataset': dataset.to_dict(),
-        'related_datasets': [d.acronym for d in related if d.acronym != dataset.acronym],
-        'origin_datasets': [d.acronym for d in origin if d.acronym != dataset.acronym],
-        'same_origin_datasets': [d.acronym for d in same_origin if d.acronym != dataset.acronym],
+        'related_datasets': [{'acronym': d.acronym, 'aliases': d.acronym_aliases} for d in related if d.acronym != dataset.acronym],
+        'origin_datasets': [{'acronym': d.acronym, 'aliases': d.acronym_aliases} for d in origin if d.acronym != dataset.acronym],
+        'same_origin_datasets': [{'acronym': d.acronym, 'aliases': d.acronym_aliases} for d in same_origin if d.acronym != dataset.acronym],
         'edit_analysis_url': dataset._git_edit_url()
     }
 
 # FIXME: should probably be something like /api/datasets/{acronym:path}/download
-@api.get('/files/{acronym:path}')
-async def dataset_download(acronym: str):
-    dataset = await Dataset.find(Dataset.acronym == acronym).first_or_none()
+@api.get('/files/{acronym:path}/{aliases:path}')
+async def dataset_download(acronym: str, aliases: str):
+    aliases_list = sorted(aliases.split(","))
+    dataset = await Dataset.find(Dataset.acronym == acronym, Dataset.acronym_aliases == aliases_list).first_or_none()
 
     if dataset is None:
         Dataset.not_found(acronym)
@@ -247,9 +249,10 @@ async def dataset_download(acronym: str):
         filename=dataset.filename
     )
 
-@api.post('/datasets/{acronym:path}/edit')
+@api.post('/datasets/{acronym:path}/{aliases:path}/edit')
 async def dataset_edit(
     acronym: str,
+    aliases: str,
     acronym_aliases: Optional[str] = Form(""),
     title: Optional[str] = Form(""),
     paper_title: Optional[str] = Form(""),
@@ -262,12 +265,22 @@ async def dataset_edit(
     tags: Optional[str] = Form(""),
     url: Optional[str] = Form(""),
 ):
-    dataset = await Dataset.find(Dataset.acronym == acronym).first_or_none()
-
+    aliases_list = sorted(aliases.split(","))
+    dataset = await Dataset.find(Dataset.acronym == acronym, Dataset.acronym_aliases == aliases_list).first_or_none()
     if dataset is None:
         Dataset.not_found(acronym)
 
-    dataset.acronym_aliases = acronym_aliases.split(",")
+    old_path = dataset.get_analysis_path()
+
+    acronym_aliases_list = sorted(acronym_aliases.split(','))
+    if aliases_list != acronym_aliases_list:
+        dataset.acronym_aliases = acronym_aliases_list
+        found = await Dataset.find(Dataset.acronym == dataset.acronym, Dataset.acronym_aliases == dataset.acronym_aliases).first_or_none()
+        if found:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Dataset with acronym '{dataset.acronym}' and aliases '{dataset.acronym_aliases}' already exists"
+            )
 
     dataset.title = title
     
@@ -291,7 +304,7 @@ async def dataset_edit(
 
     try:
         await dataset.save()
-        dataset.update_analysis()
+        dataset.update_analysis(old_path=old_path)
     except Exception as exc:
         raise HTTPException(
         status_code=500,
@@ -300,9 +313,10 @@ async def dataset_edit(
 
     return {"message": f"Dataset {acronym} updated"}
 
-@api.post('/datasets/{acronym:path}/upload')
-async def dataset_upload_file(acronym: str, file: Optional[UploadFile | None] = File(None)):
-    dataset = await Dataset.find(Dataset.acronym == acronym).first_or_none()
+@api.post('/datasets/{acronym:path}/{aliases:path}/upload')
+async def dataset_upload_file(acronym: str, aliases: str, file: Optional[UploadFile | None] = File(None)):
+    aliases_list = sorted(aliases.split(","))
+    dataset = await Dataset.find(Dataset.acronym == acronym, Dataset.acronym_aliases == aliases_list).first_or_none()
 
     if dataset is None:
         Dataset.not_found(acronym)
@@ -319,9 +333,10 @@ async def dataset_upload_file(acronym: str, file: Optional[UploadFile | None] = 
     return {"message": f"File for dataset {acronym} uploaded"}
 
 
-@api.delete('/datasets/{acronym:path}')
-async def delete(acronym: str, user_email: str = Depends(require_admin)):
-    dataset = await Dataset.find(Dataset.acronym == acronym).first_or_none()
+@api.delete('/datasets/{acronym:path}/{aliases:path}')
+async def delete(acronym: str, aliases: str, user_email: str = Depends(require_admin)):
+    aliases_list = sorted(aliases.split(","))
+    dataset = await Dataset.find(Dataset.acronym == acronym, Dataset.acronym_aliases == aliases_list).first_or_none()
 
     if dataset is None:
         Dataset.not_found(acronym)
