@@ -1,6 +1,7 @@
 import argparse
 from datetime import datetime
-import subprocess
+
+from s3_client import prepare_s3, cleanup_s3
 
 import uvicorn
 from fastapi import FastAPI
@@ -69,6 +70,7 @@ def test_ndvm():
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--csv', type=str)
+    parser.add_argument('--no-s3', action='store_true', help='for testing')
     return parser.parse_args()
 
 @app.on_event("startup")
@@ -97,5 +99,8 @@ async def start_db():
 
 app.mount("/", StaticFiles(directory=config.STATIC_DIR, html=True))
 
+
 if __name__ == "__main__":
+    prepare_s3(parse_args().no_s3)
     uvicorn.run(app, host="0.0.0.0", port=8000)
+    cleanup_s3()

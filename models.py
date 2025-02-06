@@ -157,12 +157,6 @@ class Dataset(Document):
         toml_dict.pop('analysis')
         return toml_dict
 
-    def get_file_path(self) -> str | None:
-        if self.filename is None:
-            return None
-
-        return os.path.join(config.DATASET_DIR, self.filename)
-
     def get_analysis_path(self) -> str:
         return os.path.join(config.ANALYSIS_DIR, self.get_name())
 
