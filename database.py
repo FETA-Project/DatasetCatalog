@@ -2,7 +2,7 @@ import motor.motor_asyncio
 from beanie import init_beanie
 
 from config import config
-from models import Comment, Dataset, User
+from models import CollectionTool, Comment, Dataset, User
 
 
 async def init_db():
@@ -13,4 +13,4 @@ async def init_db():
     db = client[config.DATABASE_NAME]
 
     await init_beanie(database=client.db_name,
-                      document_models=[Dataset, User, Comment])
+                      document_models=[Dataset, User, Comment, CollectionTool])

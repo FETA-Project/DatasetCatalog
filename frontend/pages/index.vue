@@ -50,6 +50,17 @@
     </Column>
     <template #expansion="slotProps">
         <div class="flex">
+            <ul style="list-style: none" v-if="slotProps.data.children.length > 0">
+                <li> <b>Children:</b>
+                    <ul>
+                        <li v-for="child in slotProps.data.children">
+                            <span class="detail-link" @click="showDetail(child.acronym, child.acronym_aliases)">{{ child.acronym+'['+child.acronym_aliases+']'}}</span>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+        <div class="flex">
             <ul style="list-style: none">
                 <li><b>Paper Title: </b> {{ slotProps.data.paper_title }}</li>
                 <li class="flex gap-2"> <b>Authors: </b> 
@@ -106,7 +117,9 @@ const get_datasets = () => {
 //   return
   axios.get('/api/datasets')
     .then(response => {
-      datasets.value = response.data
+        console.log(response.data)
+      datasets.value = response.data.filter(d => d.parents.length == 0)
+      console.log(datasets.value)
       datasets.value.forEach(d => {
           // add metadata to datasets, replace underscores with spaces in keys
           d.metadata = JSON.stringify(d, function (key, value) {
@@ -141,7 +154,7 @@ onMounted(() => {
 const showDetail = (acronym, aliases) => {
     console.log(acronym, aliases)
     if(aliases == "") {
-        aliases = acronym
+        aliases = "*"
     }
     navigateTo(`/detail/${encodeURIComponent(acronym)}/${encodeURIComponent(aliases)}`)
 }

@@ -9,6 +9,7 @@ import git
 
 import pymongo
 from beanie import Document, Indexed
+from beanie.operators import All
 from fastapi import HTTPException
 import toml
 from typing_extensions import TypedDict
@@ -93,7 +94,7 @@ class Dataset(Document):
         return {
             "id": str(self.id),
             "acronym": self.acronym,
-            "acronym_aliases": sorted(self.acronym_aliases),
+            "acronym_aliases": self.acronym_aliases,
             "title": self.title,
             "paper_title": self.paper_title,
             "authors": self.authors,
@@ -107,11 +108,43 @@ class Dataset(Document):
             "tags": self.tags,
             "filename": self.filename,
             "url": self.url,
-            "analysis": self.get_analysis()
+            "analysis": self.get_analysis(),
+            "files": self.get_files(),
         }
 
+    async def get_related(self) -> tuple[list["Dataset"], list["Dataset"]]:
+        alias_parents = []
+        alias_children = []
+
+        if self.acronym_aliases != ['']:
+            alias_children = await Dataset.find(
+                All(Dataset.acronym_aliases, self.acronym_aliases)
+            ).to_list()
+            alias_parents = await Dataset.find(
+                Dataset.acronym_aliases == self.acronym_aliases[:-1]
+            ).to_list()
+
+        return (
+            [{'acronym': d.acronym, 'acronym_aliases': d.acronym_aliases} for d in alias_parents if d.acronym_aliases != self.acronym_aliases],
+            [{'acronym': d.acronym, 'acronym_aliases': d.acronym_aliases} for d in alias_children if d.acronym_aliases != self.acronym_aliases]
+        )
+
+    def get_files(self) -> list[str]:
+        files = []
+        for file in pathlib.Path(self.get_analysis_path()).iterdir():
+            if file.is_dir():
+                continue
+            elif file.name == "analysis.toml":
+                continue
+            elif file.suffix == ".ipynb":
+                continue
+            files.append(file.name)
+        return files
+
     def get_name(self) -> str:
-        return secure_filename(f"{self.acronym}.{'.'.join(sorted(self.acronym_aliases))}")
+        if len(self.acronym_aliases) == 0:
+            return secure_filename(self.acronym)
+        return secure_filename(f"{self.acronym}.{'.'.join(self.acronym_aliases)}")
 
     def to_toml_dict(self) -> dict:
         toml_dict = self.to_dict()
@@ -152,8 +185,8 @@ class Dataset(Document):
             return
 
         _analysis.analysis.update(self.to_toml_dict())
-
         _path = self.get_analysis_path()
+
         commented_lines = []
         with open(pathlib.Path(_path, 'analysis.toml'), 'r') as f:
             lines = f.readlines()
@@ -212,10 +245,11 @@ class Dataset(Document):
         return f"{config.GIT_URL}{_edit}"
         #https://gitlab.com/tranquiloSan/katoda-test/-/edit/main/asdf/analysis.toml?ref_type=heads
 
-    def not_found(acronym: str):
+    def not_found(acronym: str, aliases: list[str] = []):
+        name = acronym if len(aliases) == 0 else f"{acronym}.({'.'.join(aliases)})"
         raise HTTPException(
             status_code=404,
-            detail=f"Dataset with acronym '{acronym}' does not exist"
+            detail=f"Dataset '{name}' does not exist"
         )
 
 class User(Document):
@@ -254,6 +288,18 @@ class User(Document):
             detail=f"User with email '{email}' does not exist"
         )
 
+class CollectionTool(Document):
+    name: Indexed(str, index_type=pymongo.TEXT, unique=True)
+    url: Optional[str] = ""
+    description: Optional[str] = ""
+    known_issues: Optional[str] = ""
+
+    def not_found(name: str):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Collection tool '{name}' does not exist"
+        )
+
 
 class Analysis:  # pylint: disable=too-few-public-methods
 
@@ -265,5 +311,17 @@ class Analysis:  # pylint: disable=too-few-public-methods
             self.analysis = toml.load(file)
         except toml.decoder.TomlDecodeError as exc:
             print(f"Could not load analysis '{self.dirname}': {exc}")
-            self.analysis = dict({'Analysis Error': {'Error Message': str(exc)}})
-            
+            _lines = open(pathlib.Path(self.path, 'analysis.toml'), 'r').readlines()
+            with open(pathlib.Path(self.path, 'analysis.toml'), 'w') as f:
+                for line in _lines:
+                    if not line.startswith("#"):
+                        line = f"### {line}"
+                    f.write(line)
+                f.write("\n")
+                toml.dump({
+                    'Analysis Error': {
+                        'Message': str(exc),
+                        'Attention': "Original lines will be commented out (###) in the analysis.toml file"
+                    }
+                }, f)
+

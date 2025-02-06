@@ -4,11 +4,12 @@ import os
 from typing import Optional
 import pathlib
 
+from beanie.operators import All
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, Request
 from fastapi.responses import FileResponse
 from pymongo.errors import DuplicateKeyError
 
-from models import (Comment, Dataset, DatasetStatus, Submitter, User)
+from models import (CollectionTool, Comment, Dataset, DatasetStatus, Submitter, User)
 from oauth2 import require_user, require_admin
 # from utils import disabled
 from werkzeug.utils import secure_filename
@@ -83,12 +84,19 @@ async def upload(
     # if no filename
     # download from url
 
-    acronym_aliases_list = sorted(acronym_aliases.split(","))
+    acronym_aliases_list = acronym_aliases.split(",")
+
+    if "*" in acronym_aliases_list:
+        acronym_aliases_list.remove("*")
+    if not len(acronym_aliases_list):
+        acronym_aliases_list = ['']
+
     found = await Dataset.find(Dataset.acronym == acronym, Dataset.acronym_aliases == acronym_aliases_list).first_or_none()
     if found:
+        name = acronym if len(acronym_aliases_list) == 0 else f"{acronym}.({'.'.join(acronym_aliases_list)})"
         raise HTTPException(
             status_code=400,
-            detail=f"Dataset with acronym '{acronym}' already exists"
+            detail=f"Dataset '{name}' already exists"
         )
 
     try:
@@ -198,16 +206,35 @@ async def request_reject(acronym: str, user_email: str = Depends(require_user)):
 @api.get('/datasets')
 async def datasets():
     datasets = await Dataset.find(Dataset.status != DatasetStatus.REQUESTED).to_list()
-    return [dataset.to_dict() for dataset in datasets]
+    ret = []
+    for dataset in datasets:
+        _parents, _children = await dataset.get_related()
+        _dict = dataset.to_dict()
+        _dict.update({'parents': _parents, 'children': _children})
+        ret.append(_dict)
+
+    return ret
 
 
 @api.get('/datasets/{acronym:path}/{aliases:path}')
 async def dataset(acronym: str, aliases: str):
-    aliases_list = sorted(aliases.split(","))
+    aliases_list = [''] if aliases == "*" else aliases.split(",")
+
     dataset = await Dataset.find(Dataset.acronym == acronym, Dataset.acronym_aliases == aliases_list).first_or_none()
     
     if dataset is None:
         Dataset.not_found(acronym)
+
+    alias_children = []
+    alias_parents = []
+
+    if dataset.acronym_aliases != ['']:
+        alias_children = await Dataset.find(
+            All(Dataset.acronym_aliases, dataset.acronym_aliases)
+        ).to_list()
+        alias_parents = await Dataset.find(
+            Dataset.acronym_aliases == dataset.acronym_aliases[:-1]
+        ).to_list()
 
     related = []
     origin = []
@@ -224,13 +251,16 @@ async def dataset(acronym: str, aliases: str):
         'related_datasets': [{'acronym': d.acronym, 'aliases': d.acronym_aliases} for d in related if d.acronym != dataset.acronym],
         'origin_datasets': [{'acronym': d.acronym, 'aliases': d.acronym_aliases} for d in origin if d.acronym != dataset.acronym],
         'same_origin_datasets': [{'acronym': d.acronym, 'aliases': d.acronym_aliases} for d in same_origin if d.acronym != dataset.acronym],
+        'alias_children': [{'acronym': d.acronym, 'aliases': d.acronym_aliases} for d in alias_children if d.acronym_aliases != dataset.acronym_aliases],
+        'alias_parents': [{'acronym': d.acronym, 'aliases': d.acronym_aliases} for d in alias_parents if d.acronym_aliases != dataset.acronym_aliases],
         'edit_analysis_url': dataset._git_edit_url()
     }
 
 # FIXME: should probably be something like /api/datasets/{acronym:path}/download
 @api.get('/files/{acronym:path}/{aliases:path}')
 async def dataset_download(acronym: str, aliases: str):
-    aliases_list = sorted(aliases.split(","))
+    aliases_list = [''] if aliases == "*" else aliases.split(",")
+
     dataset = await Dataset.find(Dataset.acronym == acronym, Dataset.acronym_aliases == aliases_list).first_or_none()
 
     if dataset is None:
@@ -249,6 +279,34 @@ async def dataset_download(acronym: str, aliases: str):
         filename=dataset.filename
     )
 
+@api.get('/analysis_files/{acronym:path}/{aliases:path}/{filename:path}')
+async def analysis_files_download(acronym: str, aliases: str, filename: str):
+    aliases_list = [''] if aliases == "*" else aliases.split(",")
+
+    dataset = await Dataset.find(Dataset.acronym == acronym, Dataset.acronym_aliases == aliases_list).first_or_none()
+
+    if dataset is None:
+        Dataset.not_found(acronym)
+
+    if filename not in dataset.get_files():
+        raise HTTPException(
+            status_code=404,
+            detail=f"File '{filename}' for dataset '{acronym}' not found"
+        )
+
+    filepath = pathlib.Path(dataset.get_analysis_path()).joinpath(filename)
+    if filepath is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"File for dataset '{acronym}' not found"
+        )
+
+    return FileResponse(
+        os.path.abspath(filepath),
+        media_type="application/octet-stream",
+        filename=filename
+    )
+
 @api.post('/datasets/{acronym:path}/{aliases:path}/edit')
 async def dataset_edit(
     acronym: str,
@@ -265,14 +323,19 @@ async def dataset_edit(
     tags: Optional[str] = Form(""),
     url: Optional[str] = Form(""),
 ):
-    aliases_list = sorted(aliases.split(","))
+    aliases_list = [''] if aliases == "*" else aliases.split(",")
     dataset = await Dataset.find(Dataset.acronym == acronym, Dataset.acronym_aliases == aliases_list).first_or_none()
     if dataset is None:
         Dataset.not_found(acronym)
 
     old_path = dataset.get_analysis_path()
 
-    acronym_aliases_list = sorted(acronym_aliases.split(','))
+    acronym_aliases_list = acronym_aliases.split(',')
+    if "*" in acronym_aliases_list:
+        acronym_aliases_list.remove("*")
+    if not len(acronym_aliases_list):
+        acronym_aliases_list = ['']
+
     if aliases_list != acronym_aliases_list:
         dataset.acronym_aliases = acronym_aliases_list
         found = await Dataset.find(Dataset.acronym == dataset.acronym, Dataset.acronym_aliases == dataset.acronym_aliases).first_or_none()
@@ -315,7 +378,7 @@ async def dataset_edit(
 
 @api.post('/datasets/{acronym:path}/{aliases:path}/upload')
 async def dataset_upload_file(acronym: str, aliases: str, file: Optional[UploadFile | None] = File(None)):
-    aliases_list = sorted(aliases.split(","))
+    aliases_list = [''] if aliases == "*" else aliases.split(",")
     dataset = await Dataset.find(Dataset.acronym == acronym, Dataset.acronym_aliases == aliases_list).first_or_none()
 
     if dataset is None:
@@ -335,7 +398,7 @@ async def dataset_upload_file(acronym: str, aliases: str, file: Optional[UploadF
 
 @api.delete('/datasets/{acronym:path}/{aliases:path}')
 async def delete(acronym: str, aliases: str, user_email: str = Depends(require_admin)):
-    aliases_list = sorted(aliases.split(","))
+    aliases_list = [''] if aliases == "*" else aliases.split(",")
     dataset = await Dataset.find(Dataset.acronym == acronym, Dataset.acronym_aliases == aliases_list).first_or_none()
 
     if dataset is None:
@@ -426,4 +489,52 @@ async def comments_delete(comment_id: str):
 
     return {"message": f"Comment {comment_id} deleted"}
 
+@api.get('/collectionTools')
+async def get_collection_tools():
+    return await CollectionTool.find().to_list()
 
+@api.get('/collectionTools/{name}')
+async def get_collection_tool(name: str):
+    return await CollectionTool.find(CollectionTool.name == name).first_or_none()
+
+@api.post('/collectionTools')
+async def create_collection_tool(name: str = Form(...), url: str = Form(""), description: str = Form(""), known_issues: str = Form("")):
+    if await CollectionTool.find(CollectionTool.name == name).first_or_none():
+        raise HTTPException(status_code=400, detail="Collection tool already exists")
+
+    new_collection_tool = CollectionTool(
+        name=name,
+        url=url,
+        description=description,
+        known_issues=known_issues
+    )
+
+    await new_collection_tool.insert()
+
+    return new_collection_tool
+
+@api.post('/collectionTools/{name}')
+async def edit_collection_tool(name: str, url: str = Form(""), description: str = Form(""), known_issues: str = Form("")):
+    collection_tool = await CollectionTool.find(CollectionTool.name == name).first_or_none()
+
+    if collection_tool is None:
+        CollectionTool.not_found(name)
+
+    collection_tool.url = url
+    collection_tool.description = description
+    collection_tool.known_issues = known_issues
+
+    await collection_tool.save()
+
+    return collection_tool
+
+@api.delete('/collectionTools/{name}')
+async def delete_collection_tool(name: str):
+    collection_tool = await CollectionTool.find(CollectionTool.name == name).first_or_none()
+
+    if collection_tool is None:
+        CollectionTool.not_found(name)
+
+    await collection_tool.delete()
+
+    return {"message": f"Collection tool {name} deleted"}

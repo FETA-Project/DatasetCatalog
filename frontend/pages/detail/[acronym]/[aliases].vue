@@ -3,7 +3,11 @@
         <Toast position="bottom-right" />
         <MainMenu />
         <h1>
-            Details of {{ dataset_acronym }}
+            Details of {{ 
+                dataset.acronym
+                + (dataset.acronym_aliases.length == 0 ? '' : '.')
+                + dataset.acronym_aliases.join('.') 
+                }}
             <div v-if="dataset.status == 'requested'">
                 <Badge value="Requested" severity="info"/>
                 <br />
@@ -18,6 +22,18 @@
         </h2>
         <Fieldset legend="Related Datasets" :toggleable="true" collapsed>
             <ul class="flex flex-column gap-2">
+                <div v-if="alias_parents.length > 0">
+                    <b>Dataset's Parents</b>
+                    <li v-for="dataset in alias_parents">
+                        <span class="detail-link" @click="showDetail(dataset.acronym, dataset.aliases)">{{ dataset.acronym+'['+dataset.aliases+']'}}</span>
+                    </li>
+                </div>
+                <div v-if="alias_children.length > 0">
+                    <b>Dataset's Children</b>
+                    <li v-for="dataset in alias_children">
+                        <span class="detail-link" @click="showDetail(dataset.acronym, dataset.aliases)">{{ dataset.acronym+'['+dataset.aliases+']'}}</span>
+                    </li>
+                </div>
                 <div v-if="origin_datasets.length > 0">
                     <b>Origin Datasets</b>
                     <li v-for="dataset in origin_datasets">
@@ -72,7 +88,7 @@
             <Button label="Add Comment" icon="pi pi-plus" severity="secondary" @click="createComment(dataset.acronym)" style="margin-bottom: 0.3em" />
             <Comments @signal="handleSignal" :comments="comments" :key="commentsKey"/>
         </Fieldset>
-        <Analysis :analysis="analysis.analysis" :acronym="dataset.acronym"/>
+        <Analysis :analysis="analysis.analysis" :acronym="dataset.acronym" :aliases="dataset.acronym_aliases" :files="dataset.files"/>
     </div>
 </template>
 
@@ -90,6 +106,8 @@ const toast = useToast()
 const dataset_acronym = ref("Unknown")
 const dataset_aliases = ref("Unknown")
 const dataset = ref()
+const alias_parents = ref()
+const alias_children = ref()
 const related_datasets = ref()
 const origin_datasets = ref()
 const same_origin_datasets = ref()
@@ -107,7 +125,7 @@ const CreateCommentDialog = defineAsyncComponent(() => import('@/components/crea
 
 const showDetail = (acronym, aliases) => {
     if (aliases == "") {
-        aliases = acronym
+        aliases = "*"
     }
     navigateTo(`/detail/${encodeURIComponent(acronym)}/${encodeURIComponent(aliases)}`)
 }
@@ -135,6 +153,7 @@ const createComment = (belongs_to) => {
     const dialogRef = dialog.open(CreateCommentDialog, {
         props: {
             header: "Add Comment",
+            modal: true,
         },
         data: {
             belongs_to: belongs_to,
@@ -170,8 +189,9 @@ const get_dataset = (acronym, aliases) => {
           related_datasets.value = response_dataset.data.related_datasets
           origin_datasets.value = response_dataset.data.origin_datasets
           same_origin_datasets.value = response_dataset.data.same_origin_datasets
+          alias_children.value = response_dataset.data.alias_children
+          alias_parents.value = response_dataset.data.alias_parents
           comments.value = response_comments.data
-          console.log(analysis.value)
       }))
       .catch(error => {
             toast.add({
@@ -185,7 +205,7 @@ const get_dataset = (acronym, aliases) => {
 
 const editDataset = (acronym, aliases) => {
     if (aliases == "") {
-        aliases = acronym
+        aliases = "*"
     }
     navigateTo(`/edit/${encodeURIComponent(acronym)}/${encodeURIComponent(aliases)}`)
 }
@@ -240,9 +260,6 @@ onMounted(() => {
     // dataset_title.value = "dataset_example_name"
     dataset_acronym.value = decodeURIComponent(route.params.acronym)
     dataset_aliases.value = decodeURIComponent(route.params.aliases)
-    if (dataset_aliases.value == dataset_acronym.value) {
-        dataset_aliases.value = ""
-    }
     get_dataset(dataset_acronym.value, dataset_aliases.value)
     axios.get('/api/users/me')
         .then(response => {

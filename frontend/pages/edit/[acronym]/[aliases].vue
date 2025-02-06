@@ -219,7 +219,7 @@
               </div>
       <footer class="flex justify-content-between">
         <Button label="Save" icon="pi pi-save" class="mr-2" severity="success" @click="editDataset()"/>
-        <Button label="Back" icon="pi pi-arrow-left" class="mr-2" severity="secondary" @click="navigateTo(`/detail/${encodeURIComponent(dataset_acronym)}`)"/>
+        <Button label="Back" icon="pi pi-arrow-left" class="mr-2" severity="secondary" @click="navigateTo(`/detail/${encodeURIComponent(dataset_acronym)}/${encodeURIComponent(dataset_aliases)}`)"/>
       </footer>
         </div>
           <!-- <footer><small>* required field</small></footer> -->
@@ -337,7 +337,7 @@ async function editDataset() {
     .then(() => {
         let new_aliases = acronym_aliases.value
         if (new_aliases == "") {
-            new_aliases = acronym.value
+            new_aliases = "*"
         }
       navigateTo(`/detail/${encodeURIComponent(dataset_acronym.value)}/${encodeURIComponent(new_aliases)}`)
     })
@@ -412,9 +412,6 @@ onMounted(() => {
     // dataset_title.value = "dataset_example_name"
     dataset_acronym.value = decodeURIComponent(route.params.acronym)
     dataset_aliases.value = decodeURIComponent(route.params.aliases)
-    if (dataset_aliases.value == dataset_acronym.value) {
-        dataset_aliases.value = ""
-    }
     get_dataset(dataset_acronym.value, dataset_aliases.value)
 })
 

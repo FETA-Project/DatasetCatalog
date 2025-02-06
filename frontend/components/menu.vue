@@ -2,26 +2,22 @@
     <div class="card relative z-2">
         <Menubar :model="items">
             <template #end>
-                <div v-if="logged_in()">
-                    <Button
+                    <!-- <Button
                         text plain
-                        :label="user.email"
-                        @click=""
-                    />
+                        label="Login"
+                        @click="login()"
+                    /> -->
                     <Button
                         text plain
                         severity="danger"
                         label="Logout"
+                        @click="logout_shib()"
+                    />
+                    <Button v-if="user"
+                        text plain
+                        label="local logout"
                         @click="logout()"
                     />
-                </div>
-                <div v-else>
-                    <Button
-                        text plain
-                        label="Login"
-                        @click="login()"
-                    />
-                </div>
             </template>
         </Menubar>
         <DynamicDialog />
@@ -42,13 +38,17 @@ onMounted(() => {
     }).catch()
 })
 
-const logged_in = () => user.value !== null
-const is_admin = () => user.value.is_admin
+// FIXME: get user from shibboleth
+// const logged_in = () => user.value !== null
+// const is_admin = () => user.value.is_admin
+const logged_in = () => true
+const is_admin = () => true
 
 const items = ref([
     {label: 'Catalog', icon: 'pi pi-fw pi-home', to: '/'},
     // {label: 'Requests', icon: 'pi pi-fw pi-ticket', to: '/requests'},
     {label: 'Users', icon: 'pi pi-fw pi-users', to: '/users', visible: () => logged_in() && is_admin()},
+    {label: 'Collection Tools', icon: 'pi pi-fw pi-search', to: '/collection_tools'},
 ])
 
 const dialog = useDialog()
@@ -70,6 +70,13 @@ const logout = () => {
     localStorage.removeItem('user')
     location.replace('/')
   })
+}
+
+const logout_shib = () => {
+    document.cookie = 'authToken=; Max-Age=0; Path=/;';
+
+    // Redirect to the backend endpoint for Shibboleth logout
+    window.location.href = '/Shibboleth.sso/Logout?return=/Shibboleth.sso/Login';
 }
 
 </script>

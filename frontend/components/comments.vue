@@ -45,6 +45,7 @@ const createComment = (comment, edit = false) => {
         const dialogRef = dialog.open(CreateCommentDialog, {
         props: {
             header: edit ? "Edit Comment" : "Add Comment",
+            modal: true,
         },
         data: {
             belongs_to: comment.belongs_to,

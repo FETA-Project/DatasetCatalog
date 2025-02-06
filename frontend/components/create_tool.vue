@@ -1,0 +1,164 @@
+<template>
+  <div id="container" class="card flex justify-content-center">
+    <div class="flex flex-column gap-3 container">
+      <Toast position="bottom-right" />
+      <div id="name" :class="{ error: nameError }" class="flex flex-column gap-2">
+        <label for="title">
+            <i class="pi pi-info-circle" v-tooltip.right="'Short name of the collection tool (e.g. ipfixprobe) which is used as the unique identifier'" />
+            Collection Tool Name*
+        </label>
+        <InputText
+          id="name"
+          v-model="name"
+          aria-describedby="acronym-help"
+          placeholder="Collection Tool Name"
+          @blur="nameError = name.length === 0"
+        />
+        <small v-if="nameError" class="p-error">
+          <i class="pi pi-exclamation-circle" style="font-size: 0.8rem" />
+          Collection tool name is required and must be unique.
+        </small>
+      </div>
+      <div id="url" class="flex flex-column gap-2">
+        <label for="url">
+            <i class="pi pi-info-circle" v-tooltip.right="'URL where the collection tool may be found.'" />
+            URL
+        </label>
+           <InputText
+            id="url"
+            v-model="url"
+            aria-describedby="url-help"
+            placeholder="URL"
+            /> 
+        </div>
+      <div id="description" class="flex flex-column gap-2">
+        <label for="Description">
+            <i class="pi pi-info-circle" v-tooltip.right="'Overview description of the collection tool'" />
+            Description
+        </label>
+        <TextArea
+          id="description"
+          v-model="description"
+          aria-describedby="description-help"
+          placeholder="Description..."
+          rows="5"
+          cols="30"
+          v-tooltip.bottom="'The description of the dataset.'"
+        />
+      </div>
+      <div id="known_issues" class="flex flex-column gap-2">
+        <label for="Known Issues">
+            <i class="pi pi-info-circle" v-tooltip.right="'Known issues of the collection tool'" />
+            Known Issues
+        </label>
+        <TextArea
+          id="known_issues"
+          v-model="known_issues"
+          aria-describedby="known_issues-help"
+          placeholder="Known Issues..."
+          rows="5"
+          cols="30"
+          v-tooltip.bottom="'The known issues of the dataset.'"
+        />
+      </div>
+        <Button
+          label="Submit"
+          icon="pi pi-upload"
+          @click="makeRequest"
+          class="w-4"
+        />
+      <footer><small>* required field</small></footer>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, watch } from "vue";
+import { useRouter } from "vue-router";
+import { useToast } from "primevue/usetoast";
+import axios from "axios";
+
+
+const router = useRouter();
+
+const toast = useToast();
+
+const dialogRef = inject("dialogRef")
+
+const name = ref("");
+const nameError = ref(false);
+const description = ref("");
+const descriptionError = ref(false);
+const known_issues = ref("");
+const known_issuesError = ref(false);
+const url = ref("");
+const urlError = ref(false);
+
+async function makeRequest(event) {
+  const formData = new FormData();
+  formData.append("name", name.value)
+  formData.append("description", description.value);
+  formData.append("known_issues", known_issues.value);
+  formData.append("url", url.value);
+
+  if (name.value.length == 0) {
+    nameError.value = true
+    toast.add({
+      severity: "error",
+      summary: "Request Error",
+      detail: 'Collectio Tool Name is required.',
+      life: 3000,
+    });
+    return
+  }
+
+  name.value = encodeURIComponent(name.value)
+
+  formData.forEach(element => {
+    console.log(element)
+  });
+
+  await axios
+    .post("/api/collectionTools", formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data', // Make sure to set the correct content type
+      },
+    })
+    .then((response) => {
+      console.log(response.data);
+      dialogRef.value.close(name.value)
+    })
+    .catch((error) => {
+      console.log(error)
+      toast.add({
+        severity: "error",
+        summary: "Upload Error",
+        detail: error.response.data.detail,
+        life: 3000,
+      });
+    });
+}
+
+watch(name, (value) => {
+  nameError.value = value.length === 0
+})
+
+</script>
+
+<style scoped>
+
+.container {
+    width: 30em;
+}
+.error {
+  color: red;
+}
+
+.error > * {
+  border-color: red;
+}
+
+label {
+  font-weight: bold;
+}
+</style>
