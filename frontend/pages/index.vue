@@ -223,3 +223,10 @@ onMounted(() => {
     .catch()
 })
 </script>
+
+<style>
+.detail-link {
+  cursor: pointer;
+  text-decoration: dotted underline;
+}
+</style>

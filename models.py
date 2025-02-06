@@ -171,8 +171,12 @@ class Dataset(Document):
 
         if not os.path.exists(_path):
             return None
-    
-        return Analysis(_path)
+
+        analysis = Analysis(_path)
+        if analysis.error:
+            Thread(target=self._git_push).start()
+
+        return analysis
 
     def update_analysis(self, old_path: str|None = None) -> None:
         if old_path is not None:
@@ -306,11 +310,13 @@ class Analysis:  # pylint: disable=too-few-public-methods
     def __init__(self, file):
         self.path = os.path.abspath(os.path.dirname(file))
         self.dirname = os.path.split(self.path)[1]
+        self.error = False
 
         try:
             self.analysis = toml.load(file)
         except toml.decoder.TomlDecodeError as exc:
             print(f"Could not load analysis '{self.dirname}': {exc}")
+            self.error = True
             _lines = open(pathlib.Path(self.path, 'analysis.toml'), 'r').readlines()
             with open(pathlib.Path(self.path, 'analysis.toml'), 'w') as f:
                 for line in _lines:
