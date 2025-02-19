@@ -1,9 +1,9 @@
 <template>
-  <div class="flex flex-column gap-3 container">
+  <div class="flex flex-col gap-4 container">
     <Toast position="bottom-right" />
     <TabView id="login-register">
         <TabPanel header="Login">
-            <div class="flex flex-column gap-3">
+            <div class="flex flex-col gap-4">
                 <InputText
                   id="email"
                   autocomplete="email"
@@ -33,7 +33,7 @@
             </div>
         </TabPanel>
         <TabPanel header="Register">
-            <div class="flex flex-column gap-3">
+            <div class="flex flex-col gap-4">
             <InputText
               id="register-email"
               autocomplete="email"

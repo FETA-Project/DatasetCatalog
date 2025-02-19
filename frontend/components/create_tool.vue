@@ -1,8 +1,8 @@
 <template>
-  <div id="container" class="card flex justify-content-center">
-    <div class="flex flex-column gap-3 container">
+  <div id="container" class="card flex justify-center">
+    <div class="flex flex-col gap-4 container">
       <Toast position="bottom-right" />
-      <div id="name" :class="{ error: nameError }" class="flex flex-column gap-2">
+      <div id="name" :class="{ error: nameError }" class="flex flex-col gap-2">
         <label for="title">
             <i class="pi pi-info-circle" v-tooltip.right="'Short name of the collection tool (e.g. ipfixprobe) which is used as the unique identifier'" />
             Collection Tool Name*
@@ -19,7 +19,7 @@
           Collection tool name is required and must be unique.
         </small>
       </div>
-      <div id="url" class="flex flex-column gap-2">
+      <div id="url" class="flex flex-col gap-2">
         <label for="url">
             <i class="pi pi-info-circle" v-tooltip.right="'URL where the collection tool may be found.'" />
             URL
@@ -31,7 +31,7 @@
             placeholder="URL"
             /> 
         </div>
-      <div id="description" class="flex flex-column gap-2">
+      <div id="description" class="flex flex-col gap-2">
         <label for="Description">
             <i class="pi pi-info-circle" v-tooltip.right="'Overview description of the collection tool'" />
             Description
@@ -46,7 +46,7 @@
           v-tooltip.bottom="'The description of the dataset.'"
         />
       </div>
-      <div id="known_issues" class="flex flex-column gap-2">
+      <div id="known_issues" class="flex flex-col gap-2">
         <label for="Known Issues">
             <i class="pi pi-info-circle" v-tooltip.right="'Known issues of the collection tool'" />
             Known Issues
@@ -65,7 +65,7 @@
           label="Submit"
           icon="pi pi-upload"
           @click="makeRequest"
-          class="w-4"
+          class="w-4/12"
         />
       <footer><small>* required field</small></footer>
     </div>
