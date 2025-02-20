@@ -1,7 +1,7 @@
 <template>
     <div>
         <MainMenu />
-        <h1>
+        <h1 class="m-4 text-3xl font-bold">
             Requested For Analysis
         </h1>
         <ConfirmDialog />
@@ -9,7 +9,7 @@
                 v-model:selection="selectedData">
         <Toast position="bottom-right" />
         <template #header>
-            <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
+            <div class="flex flex-wrap gap-2 items-center justify-between">
                 <div>
                     <Button label="Submit Dataset" icon="pi pi-ticket" class="mr-2" @click="showUpload" />
                     <Button label="Approve" icon="pi pi-check" severity="success" class="mr-2"
@@ -40,7 +40,6 @@
 
 <script setup>
 import axios from 'axios'
-import { FilterMatchMode } from 'primevue/api'
 import MainMenu from '@/components/menu.vue'
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm'
@@ -57,7 +56,7 @@ const selectedData = ref([])
 const UploadDialog = defineAsyncComponent(() => import('../components/upload.vue'))
 
 const filters = ref({
-    'global': {value: null, matchMode: FilterMatchMode.CONTAINS}
+    'global': {value: null, matchMode: "contains"}
 })
 
 const requests = ref([])

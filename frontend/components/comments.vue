@@ -4,7 +4,7 @@
             <span v-if="comment.deleted">&lt;deleted&gt;</span>
             <span v-else>{{  comment.text }}</span>
             <hr/>
-            <small class="flex justify-content-between flex-wrap">
+            <small class="flex justify-between flex-wrap">
                 <div>
                     <FormatedDate :datetime="comment.date"/> <span v-if="comment.edited"> | edited </span>
                 </div>

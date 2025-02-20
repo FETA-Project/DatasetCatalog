@@ -1,13 +1,15 @@
 <template>
-    <div class="flex flex-column gap-3">
+    <div class="flex flex-col gap-4">
         <Toast position="bottom-right" />
         <MainMenu />
-        <h1>
+        <h1 class="m-4 text-3xl font-bold">
             Details of {{ 
                 dataset.acronym
-                + (dataset.acronym_aliases.length == 0 ? '' : '.')
-                + dataset.acronym_aliases.join('.') 
+                + (dataset.versions.length == 0 ? '' : '.')
+                + dataset.versions.join('.') 
                 }}
+            <br/>
+            <Badge :value="'Analysis: ' + dataset.analysis_status" severity="info"/>
             <div v-if="dataset.status == 'requested'">
                 <Badge value="Requested" severity="info"/>
                 <br />
@@ -15,54 +17,40 @@
         </h1>
 
         <h2 class="flex gap-2">
-            <Button v-if="dataset.filename" @click="downloadDataset(dataset.acronym, dataset.acronym_aliases)" label="Download" icon="pi pi-download" severity="success" />
+            <Button v-if="dataset.filename" @click="downloadDataset(dataset.acronym, dataset.versions)" label="Download" icon="pi pi-download" severity="success" />
             <Button v-if="dataset.url" @click="getURL(dataset.url, true)" label="Open URL" icon="pi pi-link" severity="success" />
-            <Button @click="editDataset(dataset.acronym, dataset.acronym_aliases)" label="Edit Info" icon="pi pi-pencil" />
+            <Button @click="editDataset(dataset.acronym, dataset.versions)" label="Edit Info" icon="pi pi-pencil" />
             <Button @click="editAnalysis(dataset.acronym)" label="Edit Analysis" icon="pi pi-external-link" severity="secondary" />
         </h2>
         <Fieldset legend="Related Datasets" :toggleable="true" collapsed>
-            <ul class="flex flex-column gap-2">
-                <div v-if="alias_parents.length > 0">
+            <ul class="flex flex-col gap-2">
+                <div v-if="version_parents.length > 0">
                     <b>Dataset's Parents</b>
-                    <li v-for="dataset in alias_parents">
-                        <span class="detail-link" @click="showDetail(dataset.acronym, dataset.aliases)">{{ dataset.acronym+'['+dataset.aliases+']'}}</span>
+                    <li v-for="dataset in version_parents">
+                        <span class="detail-link" @click="showDetail(dataset.acronym, dataset.versions)">{{ dataset.acronym+'['+dataset.versions+']'}}</span>
                     </li>
                 </div>
-                <div v-if="alias_children.length > 0">
+                <div v-if="version_children.length > 0">
                     <b>Dataset's Children</b>
-                    <li v-for="dataset in alias_children">
-                        <span class="detail-link" @click="showDetail(dataset.acronym, dataset.aliases)">{{ dataset.acronym+'['+dataset.aliases+']'}}</span>
-                    </li>
-                </div>
-                <div v-if="origin_datasets.length > 0">
-                    <b>Origin Datasets</b>
-                    <li v-for="dataset in origin_datasets">
-                        <span class="detail-link" @click="showDetail(dataset.acronym, dataset.aliases)">{{ dataset.acronym+'['+dataset.aliases+']'}}</span>
-                    </li>
-                </div>
-                <div v-if="related_datasets.length > 0">
-                    <b>Related Datasets</b>
-                    <li v-for="dataset in related_datasets">
-                        <span class="detail-link" @click="showDetail(dataset.acronym, dataset.aliases)">{{ dataset.acronym+'['+dataset.aliases+']'}}</span>
-                    </li>
-                </div>
-                <div v-if="same_origin_datasets.length > 0">
-                    <b>Datasets With the Same Origin</b>
-                    <li v-for="dataset in same_origin_datasets">
-                        <span class="detail-link" @click="showDetail(dataset.acronym, dataset.aliases)">{{ dataset.acronym+'['+dataset.aliases+']'}}</span>
+                    <li v-for="dataset in version_children">
+                        <span class="detail-link" @click="showDetail(dataset.acronym, dataset.versions)">{{ dataset.acronym+'['+dataset.versions+']'}}</span>
                     </li>
                 </div>
             </ul>
         </Fieldset>
         <Fieldset legend="Details" :toggleable="true">
-            <ul style="list-style: none" class="flex flex-column gap-2">
-                <li class="flex gap-2"> <b>Acronym Aliases: </b> 
-                    <Chip v-for="acronym_alias in dataset.acronym_aliases">{{ acronym_alias }}</Chip>
+            <ul style="list-style: none" class="flex flex-col gap-2">
+                <li class="flex gap-2"> <b>Versions: </b> 
+                    <div class="flex gap-1" v-if="dataset.versions.length > 1 || dataset.versions[0] != ''">
+                        <Chip v-for="version in dataset.versions">{{ version }}</Chip>
+                    </div>
                 </li>
                 <li><b>Dataset Title: </b> {{ dataset.title }}</li>
                 <li><b>Paper Title: </b> {{ dataset.paper_title }}</li>
                 <li class="flex gap-2"> <b>Authors: </b> 
-                    <Chip v-for="author in dataset.authors">{{ author }}</Chip>
+                    <div class="flex gap-1" v-if="dataset.authors.length > 1 || dataset.authors[0] != ''">
+                        <Chip v-for="author in dataset.authors">{{ author }}</Chip>
+                    </div>
                 </li>
                 <li><b>Date Submitted: </b> <FormatedDate :datetime="dataset.date_submitted"/></li>
                 <li>
@@ -75,10 +63,12 @@
                 <li> <b>Description: </b> {{ dataset.description }} </li>
                 <li> <b>Format: </b> {{ dataset.format }} </li>
                 <li> <b>DOI: </b> <a :href="dataset.doi" target="_blank">{{ dataset.doi }}</a></li>
-                <li> <b>Origins DOI: </b> <a :href="dataset.origins_doi" target="_blank">{{ dataset.origins_doi }}</a></li>
+                <li> <b>Label Name: </b> {{ dataset.label_name }} </li>
                 <li class="flex gap-2"> <b>Tags: </b> 
                     <!-- <div class="flex gap-2"><Chip v-for="tag in dataset.tags">{{ tag }}</Chip></div> -->
-                    <Chip v-for="tag in dataset.tags">{{ tag }}</Chip>
+                    <div class="flex gap-1" v-if="dataset.tags.length > 1 || dataset.tags[0] != ''">
+                        <Chip v-for="tag in dataset.tags">{{ tag }}</Chip>
+                    </div>
                 </li>
                 <li> <b>Data URL: </b> <a :href="getURL(dataset.url)" about="_blank">{{ dataset.url }}</a></li>
                 <li> <b>Data File: </b> {{ dataset.filename }} </li>
@@ -88,7 +78,7 @@
             <Button label="Add Comment" icon="pi pi-plus" severity="secondary" @click="createComment(dataset.acronym)" style="margin-bottom: 0.3em" />
             <Comments @signal="handleSignal" :comments="comments" :key="commentsKey"/>
         </Fieldset>
-        <Analysis :analysis="analysis.analysis" :acronym="dataset.acronym" :aliases="dataset.acronym_aliases" :files="dataset.files"/>
+        <Analysis :analysis="analysis.analysis" :acronym="dataset.acronym" :versions="dataset.versions" :files="dataset.files"/>
     </div>
 </template>
 
@@ -104,10 +94,10 @@ import Analysis from '@/components/analysis.vue'
 
 const toast = useToast()
 const dataset_acronym = ref("Unknown")
-const dataset_aliases = ref("Unknown")
+const dataset_versions = ref("Unknown")
 const dataset = ref()
-const alias_parents = ref()
-const alias_children = ref()
+const version_parents = ref()
+const version_children = ref()
 const related_datasets = ref()
 const origin_datasets = ref()
 const same_origin_datasets = ref()
@@ -123,11 +113,11 @@ const dialog = useDialog()
 
 const CreateCommentDialog = defineAsyncComponent(() => import('@/components/create_comment.vue'))
 
-const showDetail = (acronym, aliases) => {
-    if (aliases == "") {
-        aliases = "*"
+const showDetail = (acronym, versions) => {
+    if (versions == "") {
+        versions = "*"
     }
-    navigateTo(`/detail/${encodeURIComponent(acronym)}/${encodeURIComponent(aliases)}`)
+    navigateTo(`/detail/${encodeURIComponent(acronym)}/${encodeURIComponent(versions)}`)
 }
 
 const handleSignal = (payload) => {
@@ -169,28 +159,28 @@ const createComment = (belongs_to) => {
     
 }
 
-const get_dataset = (acronym, aliases) => {
+const get_dataset = (acronym, versions) => {
     console.log("get")
     console.log(acronym)
-    console.log(aliases)
+    console.log(versions)
     axios.all([
-        axios.get(`/api/datasets/${encodeURIComponent(acronym)}/${encodeURIComponent(aliases)}`),
-        // axios.get(`/api/comments/${encodeURIComponent(acronym)}/${encodeURIComponent(aliases)}`),
+        axios.get(`/api/datasets/${encodeURIComponent(acronym)}/${encodeURIComponent(versions)}`),
+        // axios.get(`/api/comments/${encodeURIComponent(acronym)}/${encodeURIComponent(versions)}`),
         axios.get(`/api/comments/${encodeURIComponent(acronym)}`),
     ])
       .then(axios.spread((response_dataset, response_comments) => {
         //   dataset.value.analysis = {}
           dataset.value = response_dataset.data.dataset
           dataset.value.authors = dataset.value.authors.filter(author => author !== "")
-          dataset.value.acronym_aliases = dataset.value.acronym_aliases.filter(alias => alias !== "")
+          dataset.value.versions = dataset.value.versions.filter(version => version !== "")
           dataset.value.tags = dataset.value.tags.filter(tag => tag !== "")
           analysis.value = response_dataset.data.dataset.analysis
           edit_analysis_url.value = response_dataset.data.edit_analysis_url
           related_datasets.value = response_dataset.data.related_datasets
           origin_datasets.value = response_dataset.data.origin_datasets
           same_origin_datasets.value = response_dataset.data.same_origin_datasets
-          alias_children.value = response_dataset.data.alias_children
-          alias_parents.value = response_dataset.data.alias_parents
+          version_children.value = response_dataset.data.version_children
+          version_parents.value = response_dataset.data.version_parents
           comments.value = response_comments.data
       }))
       .catch(error => {
@@ -203,11 +193,11 @@ const get_dataset = (acronym, aliases) => {
       })
 }
 
-const editDataset = (acronym, aliases) => {
-    if (aliases == "") {
-        aliases = "*"
+const editDataset = (acronym, versions) => {
+    if (versions == "") {
+        versions = "*"
     }
-    navigateTo(`/edit/${encodeURIComponent(acronym)}/${encodeURIComponent(aliases)}`)
+    navigateTo(`/edit/${encodeURIComponent(acronym)}/${encodeURIComponent(versions)}`)
 }
 
 // const editAnalysis = (acronym) => {
@@ -228,9 +218,9 @@ const getURL = (url, open = false) => {
     }
 }
 
-const downloadDataset = (acronym, aliases) => {
+const downloadDataset = (acronym, versions) => {
     // axios.get(`/api/datasets/${encodeURIComponent(acronym)}/file`)
-    axios.get(`/api/files/${encodeURIComponent(acronym)}/${encodeURIComponent(aliases)}`)
+    axios.get(`/api/files/${encodeURIComponent(acronym)}/${encodeURIComponent(versions)}`)
         .then(response => {
             const blob = new Blob([response.data], { type: response.headers['content-type'] });
             const url = window.URL.createObjectURL(blob);
@@ -259,8 +249,8 @@ const downloadDataset = (acronym, aliases) => {
 onMounted(() => { 
     // dataset_title.value = "dataset_example_name"
     dataset_acronym.value = decodeURIComponent(route.params.acronym)
-    dataset_aliases.value = decodeURIComponent(route.params.aliases)
-    get_dataset(dataset_acronym.value, dataset_aliases.value)
+    dataset_versions.value = decodeURIComponent(route.params.versions)
+    get_dataset(dataset_acronym.value, dataset_versions.value)
     axios.get('/api/users/me')
         .then(response => {
             console.log(response.data)

@@ -33,10 +33,12 @@ import Tooltip from 'primevue/tooltip'
 import Accordion from 'primevue/accordion'
 import AccordionTab from 'primevue/accordiontab'
 import Checkbox from 'primevue/checkbox'
+import Select from 'primevue/select'
+import AutoComplete from 'primevue/autocomplete'
 
 
 export default defineNuxtPlugin((nuxtApp) => {
-  nuxtApp.vueApp.use(PrimeVue, { ripple: true })
+  nuxtApp.vueApp.use(PrimeVue)
   nuxtApp.vueApp.use(ToastService)
   nuxtApp.vueApp.use(DialogService)
   nuxtApp.vueApp.use(ConfirmationService)
@@ -70,4 +72,6 @@ export default defineNuxtPlugin((nuxtApp) => {
   nuxtApp.vueApp.component('Accordion', Accordion)
   nuxtApp.vueApp.component('AccordionTab', AccordionTab)
   nuxtApp.vueApp.component('Checkbox', Checkbox)
+  nuxtApp.vueApp.component('Select', Select)
+  nuxtApp.vueApp.component('AutoComplete', AutoComplete)
   })

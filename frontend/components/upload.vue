@@ -1,8 +1,8 @@
 <template>
-  <div id="container" class="card flex justify-content-center">
-    <div class="flex flex-column gap-3 container">
+  <div id="container" class="card flex justify-center">
+    <div class="flex flex-col gap-4 container">
       <Toast position="bottom-right" />
-      <div id="acronym" :class="{ error: acronymError }" class="flex flex-column gap-2">
+      <div id="acronym" :class="{ error: acronymError }" class="flex flex-col gap-2">
         <label for="title">
             <i class="pi pi-info-circle" v-tooltip.right="'Short name of the dataset (e.g. CESNET-TLS22) which is used as the unique identifier'" />
             Dataset Acronym*
@@ -19,24 +19,22 @@
           Dataset Acronym is required and must be unique.
         </small>
       </div>
-      <div id="acronym_aliases" class="flex flex-column gap-2">
-        <label for="acronym_aliases">
-            <i class="pi pi-info-circle" v-tooltip.right="'Additional alias for the Dataset Acronym (e.g. CESNET-TLS22-XS).\nUsed to filter the different subsection of the original dataset'" />
-            Dataset Acronym Aliases
+      <div id="versions" class="flex flex-col gap-2">
+        <label for="versions">
+            <i class="pi pi-info-circle" v-tooltip.right="'Additional version for the Dataset Acronym (e.g. CESNET-TLS22-XS).\nUsed to filter the different subsection of the original dataset'" />
+            Dataset Versions
         </label>
-        <div class="card p-fluid p-hidden-label">
-            <Chips 
-              id="acronym_aliases"
-              v-model="acronym_aliases"
-              separator=","
-              placeholder="Acronym Aliases..."
-              add-on-blur="true"
-              allow-duplicate="false"
-              v-tooltip.bottom="'Acronym Aliases.'"
-            />
-        </div>
+            <AutoComplete 
+              id="versions"
+              v-model="versions"
+              placeholder="Versions..."
+              aria-describedby="versions-help"
+              :multiple="true"
+              :typeahead="false"
+              v-tooltip.bottom="'Versions.'"
+              />
       </div>
-      <div id="title" :class="{ error: titleError }" class="flex flex-column gap-2">
+      <div id="title" :class="{ error: titleError }" class="flex flex-col gap-2">
         <label for="title">
             <i class="pi pi-info-circle" v-tooltip.right="'Full name of the dataset'" />
             Dataset Title
@@ -52,7 +50,7 @@
           Dataset Title is required.
         </small>
       </div>
-      <div id="name" :class="{ error: nameError }" class="flex flex-column gap-2">
+      <div id="name" :class="{ error: nameError }" class="flex flex-col gap-2">
         <label for="name">
             <i class="pi pi-info-circle" v-tooltip.right="'Full name of the submitter'" />
             Submitter Name
@@ -68,7 +66,7 @@
           Submitter Name is required.
         </small>
       </div>
-      <div id="email" :class="{ error: emailError }" class="flex flex-column gap-2">
+      <div id="email" :class="{ error: emailError }" class="flex flex-col gap-2">
         <label for="email">
             <i class="pi pi-info-circle" v-tooltip.right="'Email of the submitter'" />
             Submitter Email
@@ -84,7 +82,7 @@
           Submitter Email is required.
         </small>
       </div>
-      <div id="paperTitle" :class="{ error: paperTitleError }" class="flex flex-column gap-2">
+      <div id="paperTitle" :class="{ error: paperTitleError }" class="flex flex-col gap-2">
         <label for="paperTitle">
             <i class="pi pi-info-circle" v-tooltip.right="'Full title of the paper describing the dataset'" />
             Paper Title
@@ -100,28 +98,26 @@
           Paper Title is required.
         </small>
       </div>
-      <div id="datasetAuthors" :class="{ error: authorsError }" class="flex flex-column gap-2">
+      <div id="datasetAuthors" :class="{ error: authorsError }" class="flex flex-col gap-2">
         <label for="authors">
             <i class="pi pi-info-circle" v-tooltip.right="'Authors of the dataset (comma separated)'" />
             Dataset Authors
         </label>
-        <div class="card p-fluid p-hidden-label">
-            <Chips 
+            <AutoComplete 
               id="authors"
               v-model="authors"
-              separator=","
               placeholder="Authors..."
-              add-on-blur="true"
-              allow-duplicate="false"
+              aria-describedby="authors-help"
+              :multiple="true"
+              :typeahead="false"
               v-tooltip.bottom="'The dataset authors.'"
-            />
-        </div>
+              />
         <small v-if="authorsError" class="p-error">
           <i class="pi pi-exclamation-circle" style="font-size: 0.8rem" />
           Dataset Author is required.
         </small>
       </div>
-      <div id="description" class="flex flex-column gap-2">
+      <div id="description" class="flex flex-col gap-2">
         <label for="Description">
             <i class="pi pi-info-circle" v-tooltip.right="'Short overview description of the dataset'" />
             Description
@@ -136,7 +132,7 @@
           v-tooltip.bottom="'The description of the dataset.'"
         />
       </div>
-      <div id="format" class="flex flex-column gap-2">
+      <div id="format" class="flex flex-col gap-2">
         <label for="format">
             <i class="pi pi-info-circle" v-tooltip.right="'Identify file format of the dataset (e.g. pcap, json, txt, …)'" />
             Dataset Format
@@ -149,24 +145,35 @@
                 placeholder="Format"
                 /> 
       </div>
-      <div id="tags" class="flex flex-column gap-2">
+      <div id="label_name" class="flex flex-col gap-2">
+        <label for="label_name">
+            <i class="pi pi-info-circle" v-tooltip.right="'The Label'" />
+            Dataset Label Name
+        </label>
+        <InputText
+                id="label_name"
+                v-model="label_name"
+                :class="{ error: label_nameError }"
+                aria-describedby="label_name-help"
+                placeholder="Label Name"
+                /> 
+      </div>
+      <div id="tags" class="flex flex-col gap-2">
         <label for="tags">
             <i class="pi pi-info-circle" v-tooltip.right="'Use tags to categorize the dataset (comma separated)'" />
             Tags
         </label>
-        <div class="card p-fluid p-hidden-label">
-            <Chips 
+            <AutoComplete 
               id="tags"
               v-model="tags"
-              separator=","
               placeholder="Tags..."
-              add-on-blur="true"
-              allow-duplicate="false"
+              aria-describedby="tags-help"
+              :multiple="true"
+              :typeahead="false"
               v-tooltip.bottom="'Tags to describe the dataset.'"
-            />
-        </div>
+              />
       </div>
-      <div id="doi" class="flex flex-column gap-2">
+      <div id="doi" class="flex flex-col gap-2">
         <label for="doi">
             <i class="pi pi-info-circle" v-tooltip.right="'DOI of the dataset.'" />
             DOI
@@ -177,19 +184,6 @@
                 :class="{ error: doiError }"
                 aria-describedby="doi-help"
                 placeholder="DOI"
-                /> 
-      </div>
-      <div id="originsDoi" class="flex flex-column gap-2">
-        <label for="originsDoi">
-            <i class="pi pi-info-circle" v-tooltip.right="'DOI of the original dataset'" />
-            Origins DOI
-        </label>
-        <InputText
-                id="originsDoi"
-                v-model="originsDoi"
-                :class="{ error: originsDoiError }"
-                aria-describedby="originsDoi-help"
-                placeholder="Origins DOI"
                 /> 
       </div>
       <div id="uploadLater" class="flex gap-2">
@@ -213,26 +207,26 @@
             upload-label="Submit"
           >
             <template #empty>
-              <p class="flex justify-content-center">
+              <p class="flex justify-center">
                 Drag and drop file here to upload.
               </p>
             </template>
           </FileUpload>
         </TabPanel>
         <TabPanel header="URL">
-            <div class="flex justify-content-center gap-2">
+            <div class="flex justify-center gap-2">
                <InputText
                 id="url"
                 v-model="url"
                 aria-describedby="url-help"
                 placeholder="URL"
-                class="w-8"
+                class="w-8/12"
                 /> 
                 <Button
                   label="Submit"
                   icon="pi pi-upload"
                   @click="makeRequest"
-                  class="w-4"
+                  class="w-4/12"
                 />
             </div>
         </TabPanel>
@@ -257,8 +251,8 @@ const dialogRef = inject("dialogRef")
 
 const acronym = ref("");
 const acronymError = ref(false);
-const acronym_aliases = ref("");
-const acronym_aliasesError = ref(false);
+const versions = ref("");
+const acronym_versionsError = ref(false);
 const title = ref("");
 const titleError = ref(false);
 const paperTitle = ref("");
@@ -269,10 +263,10 @@ const description = ref("");
 const descriptionError = ref(false);
 const format = ref("");
 const formatError = ref(false);
+const label_name = ref("");
+const label_nameError = ref(false);
 const doi = ref("");
 const doiError = ref(false);
-const originsDoi = ref("");
-const originsDoiError = ref(false);
 const name = ref("");
 const nameError = ref(false);
 // TODO: check if email is valid
@@ -303,20 +297,20 @@ async function makeRequestLocal(event) {
 async function makeRequest(event) {
   const formData = new FormData();
   formData.append("acronym", acronym.value)
-  formData.append("acronym_aliases", acronym_aliases.value === undefined ? [] : acronym_aliases.value);
+  formData.append("versions", versions.value === undefined ? [] : versions.value);
   formData.append("title", title.value);
   formData.append("paper_title", paperTitle.value);
   formData.append("authors", authors.value === undefined ? [] : authors.value);
   formData.append("description", description.value);
   formData.append("format", format.value);
   formData.append("doi", doi.value);
-  formData.append("origins_doi", originsDoi.value);
   formData.append("submitter", JSON.stringify({
     name: name.value,
     email: email.value
   }));
   formData.append("tags", tags.value === undefined ? [] : tags.value);
   formData.append("url", url.value);
+  formData.append("label_name", label_name.value);
 
   console.log(event.files)
   if(event.files !== undefined) {

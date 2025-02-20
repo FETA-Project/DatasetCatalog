@@ -2,13 +2,13 @@
   <div>
     <Toast position="bottom-right" />
     <MainMenu />
-    <h1>Dataset Catalog</h1>
+    <h1 class="m-4 text-3xl font-bold">Dataset Catalog</h1>
     <ConfirmDialog />
     <DataTable :value="datasets" scrollable :filters="filters"
             v-model:selection="selectedData"
             v-model:expanded-rows="expandedRows">
     <template #header>
-        <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
+        <div class="flex flex-wrap gap-2 items-center justify-between">
             <div>
                 <Button label="Submit Dataset" icon="pi pi-ticket" class="mr-2" @click="showUpload" />
                 <Button v-if="user && user.is_admin" label="Delete" icon="pi pi-trash" class="mr-2" severity="danger" @click="deleteData()" :disabled="!selectedData || !selectedData.length" />
@@ -23,10 +23,10 @@
     <Column expander style="width: 3rem"></Column>
     <Column field="metadata" header="Metadata" hidden></Column>
     <Column field="acronym" header="Acronym" sortable></Column>
-    <Column field="acronym_aliases" header="Acronym Aliases" sortable.multiple>
+    <Column field="versions" header="Versions" sortable.multiple>
       <template #body="slotProps">
-        <div class="flex gap-1">
-            <Chip v-for="alias in slotProps.data.acronym_aliases" :label="alias"></Chip>
+        <div class="flex gap-1" v-if="slotProps.data.versions.length > 1 || slotProps.data.versions[0] != ''">
+            <Chip v-for="version in slotProps.data.versions" :label="version"></Chip>
         </div>
       </template>
     </Column>
@@ -38,14 +38,21 @@
     </Column>
     <Column field="tags" header="Tags">
       <template #body="slotProps">
-        <div class="flex gap-1">
+        <div class="flex gap-1" v-if="slotProps.data.tags.length > 1 || slotProps.data.tags[0] != ''">
             <Chip v-for="tag in slotProps.data.tags" :label="tag"></Chip>
+        </div>
+      </template>
+    </Column>
+    <Column field="analysis_status" header="Analysis Status">
+      <template #body="slotProps">
+        <div class="flex gap-1">
+            <Chip :label="slotProps.data.analysis_status"></Chip>
         </div>
       </template>
     </Column>
     <Column>
         <template #body="slotProps">
-            <Button @click="showDetail(slotProps.data.acronym, slotProps.data.acronym_aliases)" label="Details" icon="pi pi-info-circle" rounded outlined />
+            <Button @click="showDetail(slotProps.data.acronym, slotProps.data.versions)" label="Details" icon="pi pi-info-circle" rounded outlined />
         </template>
     </Column>
     <template #expansion="slotProps">
@@ -54,7 +61,7 @@
                 <li> <b>Children:</b>
                     <ul>
                         <li v-for="child in slotProps.data.children">
-                            <span class="detail-link" @click="showDetail(child.acronym, child.acronym_aliases)">{{ child.acronym+'['+child.acronym_aliases+']'}}</span>
+                            <span class="detail-link" @click="showDetail(child.acronym, child.versions)">{{ child.acronym+'['+child.versions+']'}}</span>
                         </li>
                     </ul>
                 </li>
@@ -64,7 +71,9 @@
             <ul style="list-style: none">
                 <li><b>Paper Title: </b> {{ slotProps.data.paper_title }}</li>
                 <li class="flex gap-2"> <b>Authors: </b> 
-                    <Chip v-for="author in slotProps.data.authors">{{ author }}</Chip>
+                    <div class="flex gap-1" v-if="slotProps.data.authors.length > 1 || slotProps.data.authors[0] != ''">
+                        <Chip v-for="author in slotProps.data.authors">{{ author }}</Chip>
+                    </div>
                 </li>
                 <li><b>Date Submitted: </b> <FormatedDate :datetime="slotProps.data.date_submitted"/></li>
                 <li>
@@ -75,7 +84,6 @@
                     </ul>
                 </li>
                 <li> <b>Description: </b> {{ slotProps.data.description }} </li>
-                <li> <b>Origins: </b> <a :href="slotProps.data.origins_doi" target="_blank">{{ slotProps.data.origins_doi }}</a></li>
             </ul>
         </div>
     </template>
@@ -88,7 +96,6 @@
 import axios from 'axios'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
-import { FilterMatchMode } from 'primevue/api'
 import MainMenu from '@/components/menu.vue'
 import { useDialog } from 'primevue/usedialog'
 import FormatedDate from '@/components/date.vue'
@@ -105,7 +112,7 @@ const selectedData = ref([])
 const expandedRows = ref([])
 
 const filters = ref({
-    'global': {value: null, matchMode: FilterMatchMode.CONTAINS}
+    'global': {value: null, matchMode: "contains"}
 })
 
 const datasets = ref([])
@@ -151,18 +158,18 @@ onMounted(() => {
     get_datasets()
 })
 
-const showDetail = (acronym, aliases) => {
-    console.log(acronym, aliases)
-    if(aliases == "") {
-        aliases = "*"
+const showDetail = (acronym, versions) => {
+    console.log(acronym, versions)
+    if(versions == "") {
+        versions = "*"
     }
-    navigateTo(`/detail/${encodeURIComponent(acronym)}/${encodeURIComponent(aliases)}`)
+    navigateTo(`/detail/${encodeURIComponent(acronym)}/${encodeURIComponent(versions)}`)
 }
 
 const deleteData = () => {
     let to_delete = []
     selectedData.value.forEach(d => {
-        to_delete.push({'acronym': d.acronym, 'aliases': d.acronym_aliases})
+        to_delete.push({'acronym': d.acronym, 'versions': d.versions})
     });
     confirm.require({
         message: `Are you sure you want to delete ${to_delete.length} files`,
@@ -171,12 +178,12 @@ const deleteData = () => {
         accept: () => {
             selectedData.value = null
             to_delete.forEach(d => {
-                axios.delete(`/api/datasets/${encodeURIComponent(d.acronym)}/${encodeURIComponent(d.aliases)}`)
+                axios.delete(`/api/datasets/${encodeURIComponent(d.acronym)}/${encodeURIComponent(d.versions)}`)
                     .then(() => {
                         toast.add({
                             severity: 'success',
                             summary: 'Delete Successful',
-                            detail: `Dataset ${d.acronym}/${d.aliases} deleted successfully.`,
+                            detail: `Dataset ${d.acronym}/${d.versions} deleted successfully.`,
                             life: 3000
                             })
                         get_datasets()
@@ -225,6 +232,9 @@ onMounted(() => {
 </script>
 
 <style>
+.body {
+    font-size: 0.8rem;
+}
 .detail-link {
   cursor: pointer;
   text-decoration: dotted underline;

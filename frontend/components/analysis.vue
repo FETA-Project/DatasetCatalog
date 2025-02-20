@@ -1,7 +1,7 @@
 <template>
     <template v-for="(field_value, field_key) in analysis">
         <Fieldset v-if="typeof field_value == 'object'" :legend="field_key.replaceAll('_', ' ')" :toggleable="true" style="margin-bottom: 1em">
-            <ul style="list-style: none;" class="flex flex-column gap-1">
+            <ul style="list-style: none;" class="flex flex-col gap-1">
                 <template v-for="(value, key) in field_value">
                     <li v-if="!key.endsWith('_info')">
                         <!-- <em v-if="typeof value != 'object'">({{ field_value[key+"_info"] }}) </em> -->
@@ -10,7 +10,7 @@
                                 {{ key.replaceAll("_", " ") }}: 
                         </b> 
 
-                        <a v-if="typeof value =='string' && value.endsWith('.ipynb')" :href="jupyterURL(acronym, aliases, value)" target="_blank">{{ value }}</a>
+                        <a v-if="typeof value =='string' && value.endsWith('.ipynb')" :href="jupyterURL(acronym, versions, value)" target="_blank">{{ value }}</a>
                         <table v-else-if="check_if_json(value)" class="styled-table">
                             <tbody>
                                 <tr v-for="(field, header) in JSON.parse(value)">
@@ -20,13 +20,13 @@
                             </tbody>
                         </table>
                         <span v-else-if="typeof value != 'object'" style="white-space: pre">
-                            <span v-if="files.includes(value)" class="file-link" @click="downloadAnalysisFile(acronym, aliases, value)">{{ value }}</span>
+                            <span v-if="files.includes(value)" class="file-link" @click="downloadAnalysisFile(acronym, versions, value)">{{ value }}</span>
                             <span v-else>{{ value }}</span>
                         </span>
                     </li>
                 </template>
                 <span v-if="typeof field_value == 'object'">
-                      <Analysis :analysis="field_value" :acronym="acronym" :aliases="aliases" :files="files"/>
+                      <Analysis :analysis="field_value" :acronym="acronym" :versions="versions" :files="files"/>
                 </span>
             </ul>
         </Fieldset>
@@ -46,7 +46,7 @@ const props = defineProps({
     required: true
   },
 
-  aliases: {
+  versions: {
     type: Array,
     required: true
   },
@@ -62,14 +62,14 @@ const props = defineProps({
   }
 });
 
-const jupyterURL = (acronym, aliases, path) => {
-    console.log(aliases)
-    return "/jupyter/notebooks/" + acronym + (aliases.length == 0 ? '' : '.') + aliases.join(".") + "/" + path 
+const jupyterURL = (acronym, versions, path) => {
+    console.log(versions)
+    return "/jupyter/notebooks/" + acronym + (versions.length == 0 ? '' : '.') + versions.join(".") + "/" + path 
 }
 
-const downloadAnalysisFile = (acronym, aliases, filename) => {
+const downloadAnalysisFile = (acronym, versions, filename) => {
     // axios.get(`/api/datasets/${encodeURIComponent(acronym)}/file`)
-    axios.get(`/api/analysis_files/${encodeURIComponent(acronym)}/${encodeURIComponent(aliases)}/${encodeURIComponent(filename)}`)
+    axios.get(`/api/analysis_files/${encodeURIComponent(acronym)}/${encodeURIComponent(versions)}/${encodeURIComponent(filename)}`)
         .then(response => {
             const blob = new Blob([response.data], { type: response.headers['content-type'] });
             const url = window.URL.createObjectURL(blob);

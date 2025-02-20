@@ -12,7 +12,6 @@ from auth import auth
 from config import config
 from database import init_db
 from models import User
-from update_db_from_csv import update_db_from_csv
 
 
 app = FastAPI(
@@ -36,39 +35,8 @@ app.add_middleware(
 app.include_router(api)
 app.include_router(auth)
 
-def test_ndvm():
-    from ndvm_api import NDVM_API
-    ndvm_api = NDVM_API()
-
-    from models import Dataset, Config, CSVConfig, Submitter, DatasetType
-    testDataset = Dataset(
-        title="test",
-        description="test",
-        doi="test",
-        submitter=Submitter(name='test', surname='test', email='test'),
-        dataset_type=DatasetType.CSV,
-        config=Config(
-            csv_config=CSVConfig(
-                classes=2,
-                multiclass=False,
-                sampling_limit=5000,
-                delimiter=',',
-                delete_nan=True,
-                delete_duplicated=True,
-                label_name="",
-            ),
-            redundancy_config=None,
-            association_config=None,
-            similarity=None,
-        ),
-        dataset_path = "/usr/local/bin/NDVM/ndvm/sample_dataset/combined-doh-http.csv",
-    )
-
-    ndvm_api.create_report(testDataset, 'test-config')
-
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--csv', type=str)
     return parser.parse_args()
 
 @app.on_event("startup")
@@ -88,10 +56,6 @@ async def start_db():
         admin.set_password('admin')
         await admin.save()
 
-    csv = parse_args().csv
-    if csv:
-        print(f"Found --csv flag, importing data from CSV '{csv}'")
-        await update_db_from_csv(csv)
 
     # test_ndvm()
 
