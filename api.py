@@ -15,6 +15,7 @@ from oauth2 import require_user, require_admin
 from werkzeug.utils import secure_filename
 import git
 from config import config
+from s3_client import s3
 
 
 api = APIRouter(prefix="/api")
@@ -81,9 +82,7 @@ async def upload(
     file: Optional[UploadFile | None] = File(None),
     ):
 
-    # TODO: add support for file upload from url
-    # if no filename
-    # download from url
+    # TODO: what if there is no s3? do i store files locally?
 
     versions_list = versions.split(",")
 
@@ -112,10 +111,6 @@ async def upload(
 
     date_submitted = datetime.now(UTC)
 
-    if file is not None:
-        filename = f'{secure_filename(acronym)}{pathlib.Path(file.filename).suffix}'
-    else:
-        filename = None
 
     try:
         dataset = Dataset(
@@ -133,13 +128,15 @@ async def upload(
             status=DatasetStatus.ACCEPTED,
             tags=tags,
             label_name=label_name,
-            filename=filename,
+            # filename=filename,
             url=url,
         )
 
-        if filename is not None:    
-            with open(dataset.get_file_path(), "wb") as f:
-                f.write(file.file.read())
+        if file is not None:
+            dataset.filename = f'{secure_filename(acronym)}{pathlib.Path(file.filename).suffix}'
+            s3.put_object(
+                Bucket="katoda", Key=dataset.filename, Body=file.file.read()
+            )
 
         dataset.create_analysis()
         await dataset.insert()
@@ -158,49 +155,6 @@ async def upload(
         status_code=500,
         detail=f"Could not save dataset '{acronym}': {exc}"
     )
-
-    # try:
-    #     repo = pydoi.validate_doi(doi)
-    #     repo = doi
-    #     response = requests.get(repo+"?download")
-    #     if response.status_code == 200:
-    #         print(response)
-    #         metadata = response.json()
-    # except ValueError:
-    #     metadata = "Could not load metadata"
-
-
-
-@api.head('/requests/{acronym:path}')
-async def request_accept(acronym: str, user_email: str = Depends(require_admin)):
-    dataset = await Dataset.find(Dataset.acronym == acronym).first_or_none()
-
-    if dataset is None:
-        Dataset.not_found(acronym)
-
-    dataset.status = DatasetStatus.ACCEPTED
-    # TODO: push analysis to git
-    await dataset.save()
-
-    # TODO: change requested to analyzing
-    return {"message": f"Request for {acronym} accepted"}
-
-
-@api.delete('/requests/{acronym:path}')
-async def request_reject(acronym: str, user_email: str = Depends(require_user)):
-    user = await User.find(User.email == user_email).first_or_none()
-
-    request = await Dataset.find(Dataset.acronym == acronym).first_or_none()
-
-    if request is None:
-        Dataset.not_found(acronym)
-
-    if request.submitter.get('email') != user.email:
-        user.check_admin()
-
-    await request.delete()
-
-    return {"message": f"Request for {acronym} rejected"}
 
 
 # === DATASETS ===
@@ -268,18 +222,20 @@ async def dataset_download(acronym: str, versions: str):
     if dataset is None:
         Dataset.not_found(acronym)
 
-    filepath = dataset.get_file_path()
-    if filepath is None:
+    if dataset.filename is None:
         raise HTTPException(
             status_code=404,
             detail=f"File for dataset '{acronym}' not found"
         )
 
-    return FileResponse(
-        os.path.abspath(filepath),
-        media_type="application/octet-stream",
-        filename=dataset.filename
+    filelink = s3.generate_presigned_url(
+        "get_object",
+        Params={"Bucket": "katoda", "Key": dataset.filename},
+        ExpiresIn=3600,
     )
+
+    return {"filelink": filelink}
+
 
 @api.get('/analysis_files/{acronym:path}/{versions:path}/{filename:path}')
 async def analysis_files_download(acronym: str, versions: str, filename: str):
@@ -392,12 +348,19 @@ async def dataset_upload_file(acronym: str, versions: str, file: Optional[Upload
     if dataset is None:
         Dataset.not_found(acronym)
 
-    if dataset.filename is not None:
-        os.remove(dataset.get_file_path())
+    old_filename = dataset.filename
 
+    # FIXME: same name? acronym is not unique anymore
     dataset.filename = f'{secure_filename(acronym)}{pathlib.Path(file.filename).suffix}'
-    with open(dataset.get_file_path(), "wb") as f:
-        f.write(file.file.read())
+
+    s3.put_object(
+        Bucket="katoda", Key=dataset.filename, Body=file.file.read()
+    )
+
+    if old_filename is not None:
+        s3.delete_object(
+            Bucket="katoda", Key=old_filename
+        )
 
     await dataset.save()
 
@@ -409,8 +372,11 @@ async def delete(acronym: str, versions: str, user_email: str = Depends(require_
     versions_list = [''] if versions == "*" else versions.split(",")
     dataset = await Dataset.find(Dataset.acronym == acronym, Dataset.versions == versions_list).first_or_none()
 
-    if dataset is None:
-        Dataset.not_found(acronym)
+    if dataset.filename is not None:
+        s3.delete_object(
+            Bucket="katoda", Key=dataset.filename
+        )
+
 
     await dataset.delete()
     # TODO: also delete analysis?

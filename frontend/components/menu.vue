@@ -46,9 +46,7 @@ const is_admin = () => true
 
 const items = ref([
     {icon: 'pi pi-fw pi-sun', command: () => toggleDarkMode()},
-    // {icon: 'pi pi-fw pi-moon', command: () => toggleDarkMode()},
     {label: 'Catalog', icon: 'pi pi-fw pi-home', command: () => navigateTo('/')},
-    // {label: 'Requests', icon: 'pi pi-fw pi-ticket', to: '/requests'},
     logged_in() && is_admin() ? {label: 'Users', icon: 'pi pi-fw pi-users', command: () => navigateTo('/users')} : null,
     {label: 'Collection Tools', icon: 'pi pi-fw pi-search', command: () => navigateTo('/collection_tools')},
 ])

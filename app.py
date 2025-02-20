@@ -12,6 +12,8 @@ from auth import auth
 from config import config
 from database import init_db
 from models import User
+from s3_client import prepare_s3, cleanup_s3
+
 
 
 app = FastAPI(
@@ -37,6 +39,7 @@ app.include_router(auth)
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument('--no-s3', action='store_true', help='for testing')
     return parser.parse_args()
 
 @app.on_event("startup")
@@ -62,4 +65,6 @@ async def start_db():
 app.mount("/", StaticFiles(directory=config.STATIC_DIR, html=True))
 
 if __name__ == "__main__":
+    prepare_s3(parse_args().no_s3)
     uvicorn.run(app, host="0.0.0.0", port=8000)
+    cleanup_s3()
