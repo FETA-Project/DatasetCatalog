@@ -133,9 +133,9 @@ async def upload(
         )
 
         if file is not None:
-            dataset.filename = f'{secure_filename(acronym)}{pathlib.Path(file.filename).suffix}'
-            s3.put_object(
-                Bucket="katoda", Key=dataset.filename, Body=file.file.read()
+            dataset.filename = f'{dataset.get_name()}{pathlib.Path(file.filename).suffix}'
+            s3.client.put_object(
+                Bucke=config.S3_BUCKET, Key=dataset.filename, Body=file.file.read()
             )
 
         dataset.create_analysis()
@@ -228,7 +228,7 @@ async def dataset_download(acronym: str, versions: str):
             detail=f"File for dataset '{acronym}' not found"
         )
 
-    filelink = s3.generate_presigned_url(
+    filelink = s3.client.generate_presigned_url(
         "get_object",
         Params={"Bucket": "katoda", "Key": dataset.filename},
         ExpiresIn=3600,
@@ -332,6 +332,21 @@ async def dataset_edit(
     try:
         await dataset.save()
         dataset.update_analysis(old_path=old_path)
+
+        if dataset.filename != dataset.get_name():
+            _new_filename = f"{dataset.get_name()}{pathlib.Path(dataset.filename).suffix}"
+            s3.client.copy_object(
+                Bucke=config.S3_BUCKET,
+                CopySource={"Bucket": "katoda", "Key": dataset.filename},
+                Key=_new_filename,
+            )
+            s3.client.delete_object(
+                Bucke=config.S3_BUCKET, Key=dataset.filename
+            )
+
+            dataset.filename = _new_filename
+            await dataset.save()
+
     except Exception as exc:
         raise HTTPException(
         status_code=500,
@@ -350,16 +365,15 @@ async def dataset_upload_file(acronym: str, versions: str, file: Optional[Upload
 
     old_filename = dataset.filename
 
-    # FIXME: same name? acronym is not unique anymore
-    dataset.filename = f'{secure_filename(acronym)}{pathlib.Path(file.filename).suffix}'
+    dataset.filename = f'{dataset.get_name()}{pathlib.Path(file.filename).suffix}'
 
-    s3.put_object(
-        Bucket="katoda", Key=dataset.filename, Body=file.file.read()
+    s3.client.put_object(
+        Bucke=config.S3_BUCKET, Key=dataset.filename, Body=file.file.read()
     )
 
-    if old_filename is not None:
-        s3.delete_object(
-            Bucket="katoda", Key=old_filename
+    if old_filename is not None and old_filename != dataset.filename:
+        s3.client.delete_object(
+            Bucke=config.S3_BUCKET, Key=old_filename
         )
 
     await dataset.save()
@@ -373,8 +387,8 @@ async def delete(acronym: str, versions: str, user_email: str = Depends(require_
     dataset = await Dataset.find(Dataset.acronym == acronym, Dataset.versions == versions_list).first_or_none()
 
     if dataset.filename is not None:
-        s3.delete_object(
-            Bucket="katoda", Key=dataset.filename
+        s3.client.delete_object(
+            Bucke=config.S3_BUCKET, Key=dataset.filename
         )
 
 

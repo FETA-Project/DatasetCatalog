@@ -1,6 +1,5 @@
 import argparse
 from datetime import datetime
-import subprocess
 
 import uvicorn
 from fastapi import FastAPI
@@ -12,9 +11,7 @@ from auth import auth
 from config import config
 from database import init_db
 from models import User
-from s3_client import prepare_s3, cleanup_s3
-
-
+from s3_client import s3
 
 app = FastAPI(
     openapi="3.0.2",
@@ -65,6 +62,6 @@ async def start_db():
 app.mount("/", StaticFiles(directory=config.STATIC_DIR, html=True))
 
 if __name__ == "__main__":
-    prepare_s3(parse_args().no_s3)
+    s3.prepare_s3(parse_args().no_s3)
     uvicorn.run(app, host="0.0.0.0", port=8000)
-    cleanup_s3()
+    s3.cleanup_s3()
