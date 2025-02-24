@@ -241,18 +241,7 @@ const downloadDataset = (acronym, versions) => {
     // axios.get(`/api/datasets/${encodeURIComponent(acronym)}/file`)
     axios.get(`/api/files/${encodeURIComponent(acronym)}/${encodeURIComponent(versions)}`)
         .then(response => {
-            const blob = new Blob([response.data], { type: response.headers['content-type'] });
-            const url = window.URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            let filename = "filename"
-            const matches = response.headers['content-disposition'].match(/filename="(.+)"/);
-            if (matches && matches[1]) {
-               filename = matches[1];
-            }
-            link.setAttribute('download', filename);
-            document.body.appendChild(link);
-            link.click();
+            window.open(response.data.filelink, "_blank")
         })
         .catch(error => {
             toast.add({
