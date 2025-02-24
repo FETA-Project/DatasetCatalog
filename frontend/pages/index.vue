@@ -35,7 +35,7 @@
     <Column field="title" header="Title" sortable></Column>
     <Column field="doi" header="DOI">
         <template #body="slotProps">
-            <a :href="'https://doi.org/' + slotProps.data.doi" target="_blank">{{ slotProps.data.doi }}</a>
+            <a class="font-medium text-blue-600 dark:text-blue-500 hover:underline" :href="'https://doi.org/' + slotProps.data.doi" target="_blank">{{ slotProps.data.doi }}</a>
         </template>
     </Column>
     <Column field="tags" header="Tags">
@@ -137,7 +137,7 @@ const analysisStatusColor = (status) => {
 const get_datasets = () => {
 //   datasets.value = fake_data
 //   return
-  axios.get(`http://localhost:8000/api/datasets`)
+  axios.get(`/api/datasets`)
     .then(response => {
         console.log(response.data)
       datasets.value = response.data.filter(d => d.version_parents.length == 0)
