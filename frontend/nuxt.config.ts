@@ -1,15 +1,53 @@
-// https://nuxt.com/docs/api/configuration/nuxt-config
-import { defineNuxtConfig } from 'nuxt/config'
-export default defineNuxtConfig({
-    css: [
-        'primevue/resources/themes/lara-light-blue/theme.css',
-        'primevue/resources/primevue.css',
-        'primeicons/primeicons.css',
-        'primeflex/primeflex.css',
-        // 'bootstrap/dist/css/bootstrap.min.css',
-    ],
-    build: {
-        transpile: ["primevue"]
-    },
-})
+import Lara from '@primevue/themes/lara';
 
+export default defineNuxtConfig({
+//   runtimeConfig: {
+//       public: {
+//         apiBaseUrl: process.env.API_BASE_URL || 'http://localhost:8000',
+//       },
+//   },
+  ssr: true,
+  modules: [
+      '@nuxtjs/tailwindcss',
+      '@primevue/nuxt-module',
+      '@nuxtjs/google-fonts',
+  ],
+
+  css: [
+      'primeicons/primeicons.css',
+    //   '@/assets/styles/base.css',
+    //   '@/assets/styles/tailwind.css'
+  ],
+
+  googleFonts: {
+    families: {
+      // "DM Sans": true,
+      "Inter": true,
+      // "Noto Serif": true,
+      // Roboto: [100, 400],
+    }
+  },
+
+  primevue: {
+      options: {
+          ripple: false,
+          // inputVariant: 'outlined',
+          theme: {
+              preset: Lara,
+               options: {
+                  darkModeSelector: '.dark',
+               },
+          },
+      }
+  },
+
+  postcss: {
+      plugins: {
+          'postcss-import': {},
+          tailwindcss: {},
+          autoprefixer: {}
+      }
+  },
+
+  compatibilityDate: '2025-02-24',
+})

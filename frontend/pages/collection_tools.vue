@@ -2,21 +2,23 @@
   <div>
     <Toast position="bottom-right" />
     <MainMenu />
-    <h1>Collection Tools</h1>
+    <h1 class="m-4 text-3xl font-bold">Collection Tools</h1>
     <ConfirmDialog />
     <DataTable :value="tools" scrollable :filters="filters"
             v-model:selection="selectedData"
             v-model:expanded-rows="expandedRows">
     <template #header>
-        <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
+        <div class="flex flex-wrap gap-2 items-center justify-between">
             <div>
                 <Button label="Create Collection Tool" icon="pi pi-ticket" class="mr-2" @click="showUpload" />
                 <Button v-if="user && user.is_admin" label="Delete" icon="pi pi-trash" class="mr-2" severity="danger" @click="deleteData()" :disabled="!selectedData || !selectedData.length" />
             </div>
-            <span class="p-input-icon-left">
-                <i class="pi pi-search" />
+            <IconField>
+                <InputIcon>
+                    <i class="pi pi-search" />
+                </InputIcon>
                 <InputText v-model="filters['global'].value" placeholder="Search..." />
-            </span>
+            </IconField>
         </div>
     </template>
     <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
@@ -50,7 +52,6 @@
 import axios from 'axios'
 import { useToast } from 'primevue/usetoast'
 import { useConfirm } from 'primevue/useconfirm'
-import { FilterMatchMode } from 'primevue/api'
 import MainMenu from '@/components/menu.vue'
 import { useDialog } from 'primevue/usedialog'
 import FormatedDate from '@/components/date.vue'
@@ -67,7 +68,7 @@ const selectedData = ref([])
 const expandedRows = ref([])
 
 const filters = ref({
-    'global': {value: null, matchMode: FilterMatchMode.CONTAINS}
+    'global': {value: null, matchMode: "contains"}
 })
 
 const tools = ref([])
@@ -105,12 +106,12 @@ const getURL = (url, open = false) => {
     return open ? window.open(_url, "_blank") : _url;
 }
 
-const showDetail = (acronym, aliases) => {
-    console.log(acronym, aliases)
-    if(aliases == "") {
-        aliases = "*"
+const showDetail = (acronym, versions) => {
+    console.log(acronym, versions)
+    if(versions == "") {
+        versions = "*"
     }
-    navigateTo(`/detail/${encodeURIComponent(acronym)}/${encodeURIComponent(aliases)}`)
+    navigateTo(`/detail/${encodeURIComponent(acronym)}/${encodeURIComponent(versions)}`)
 }
 
 const deleteData = () => {

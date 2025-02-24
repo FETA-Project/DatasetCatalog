@@ -1,8 +1,8 @@
 <template>
-  <div id="container" class="card flex justify-content-center">
-    <div class="flex flex-column gap-3 container">
+  <div id="container" class="card flex justify-center">
+    <div class="flex flex-col gap-4 container">
       <Toast position="bottom-right" />
-      <div v-if="!edit" id="author" :class="{ error: authorError }" class="flex flex-column gap-2">
+      <div v-if="!edit" id="author" :class="{ error: authorError }" class="flex flex-col gap-2">
         <label for="author">
             <i class="pi pi-info-circle" v-tooltip.right="'Name of the commentor.'" />
             Name
@@ -18,7 +18,7 @@
           Name is required.
         </small>
       </div>
-     <div id="text" class="flex flex-column gap-2">
+     <div id="text" class="flex flex-col gap-2">
         <label for="Text">
             <i class="pi pi-info-circle" v-tooltip.right="'Text of the comment.'" />
             Text

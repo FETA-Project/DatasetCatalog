@@ -1,7 +1,7 @@
 <template>
     <div>
         <MainMenu />
-        <h1>
+        <h1 class="m-4 text-3xl font-bold">
             Users
         </h1>
         <ConfirmDialog />
@@ -9,14 +9,16 @@
                 v-model:selection="selectedData">
         <Toast position="bottom-right" />
         <template #header>
-            <div class="flex flex-wrap gap-2 align-items-center justify-content-between">
+            <div class="flex flex-wrap gap-2 items-center justify-between">
                 <div>
                     <Button label="Delete" icon="pi pi-trash" severity="danger" @click="deleteData()" :disabled="!selectedData || !selectedData.length" />
                 </div>
-                <span class="p-input-icon-left">
-                    <i class="pi pi-search" />
+                <IconField>
+                    <InputIcon>
+                        <i class="pi pi-search" />
+                    </InputIcon>
                     <InputText v-model="filters['global'].value" placeholder="Search..." />
-                </span>
+                </IconField>
             </div>
         </template>
         <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
@@ -32,7 +34,6 @@
 
 <script setup>
 import axios from 'axios'
-import { FilterMatchMode } from 'primevue/api'
 import MainMenu from '@/components/menu.vue'
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm'
@@ -47,7 +48,7 @@ const dialog = useDialog()
 const selectedData = ref([])
 
 const filters = ref({
-    'global': {value: null, matchMode: FilterMatchMode.CONTAINS}
+    'global': {value: null, matchMode: "contains"}
 })
 
 const users = ref([])

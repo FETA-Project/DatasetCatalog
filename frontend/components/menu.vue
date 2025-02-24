@@ -1,5 +1,5 @@
 <template>
-    <div class="card relative z-2">
+    <div class="card relative z-20">
         <Menubar :model="items">
             <template #end>
                     <!-- <Button
@@ -45,14 +45,39 @@ const logged_in = () => true
 const is_admin = () => true
 
 const items = ref([
-    {label: 'Catalog', icon: 'pi pi-fw pi-home', to: '/'},
-    // {label: 'Requests', icon: 'pi pi-fw pi-ticket', to: '/requests'},
-    {label: 'Users', icon: 'pi pi-fw pi-users', to: '/users', visible: () => logged_in() && is_admin()},
-    {label: 'Collection Tools', icon: 'pi pi-fw pi-search', to: '/collection_tools'},
+    {icon: 'pi pi-fw pi-sun', command: () => toggleDarkMode()},
+    {label: 'Catalog', icon: 'pi pi-fw pi-home', command: () => navigateTo('/')},
+    logged_in() && is_admin() ? {label: 'Users', icon: 'pi pi-fw pi-users', command: () => navigateTo('/users')} : null,
+    {label: 'Collection Tools', icon: 'pi pi-fw pi-search', command: () => navigateTo('/collection_tools')},
 ])
 
 const dialog = useDialog()
 const LoginDialog = defineAsyncComponent(() => import('../components/login.vue'))
+
+const darkModeIcon = ref('pi pi-fw pi-sun')
+
+onMounted(() => {
+    if (localStorage.getItem('darkMode') === 'true') {
+        document.documentElement.classList.add('dark');
+        darkModeIcon.value = 'pi pi-fw pi-moon';
+    }
+})
+
+function getDarkMode() {
+    return document.documentElement.classList.contains('dark');
+}
+
+function toggleDarkMode() {
+    document.documentElement.classList.toggle('dark');
+
+    if (document.documentElement.classList.contains('dark')) {
+        localStorage.setItem('darkMode', 'true');
+        darkModeIcon.value = 'pi pi-fw pi-moon';
+    } else {
+        localStorage.removeItem('darkMode');
+        darkModeIcon.value = 'pi pi-fw pi-sun';
+    }
+}
 
 const login = () => {
     const dialogRef = dialog.open(LoginDialog, {

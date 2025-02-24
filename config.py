@@ -30,6 +30,12 @@ class Config(BaseSettings):
     # GIT_URL: Optional[str] = "https://gitlab.com/tranquiloSan/katoda-test"
     GIT_URL: Optional[str] = "https://gitlab.liberouter.org/monitoring/katoda-datasets"
 
+    S3_URL: Optional[str] = "http://localhost:4566"
+    S3_ACCESS_KEY: Optional[str] = "katoda"
+    S3_SECRET_KEY: Optional[str] = "katoda"
+    S3_USER: Optional[str] = "katoda"
+    S3_BUCKET: Optional[str] = "katoda"
+
     class Config:
         env_file = './.env'
 

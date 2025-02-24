@@ -1,31 +1,43 @@
 <template>
-    <div class="flex flex-column gap-3">
+    <div class="flex flex-col gap-4">
         <Toast position="bottom-right" />
         <MainMenu />
-      <div id="container" class="card flex justify-content-center">
-        <div class="flex flex-column gap-3 container">
+      <div id="container" class="card flex justify-center">
+        <div class="flex flex-col gap-4 container">
           <Toast position="bottom-right" />
-        <h1>
+        <h1 class="mt-4 mb-4 text-3xl font-bold">
             Editing {{ dataset_acronym }}
         </h1>
-              <div id="acronym_aliases" class="flex flex-column gap-2">
-                <label for="acronym_aliases">
-                    <i class="pi pi-info-circle" v-tooltip.right="'Additional alias for the Dataset Acronym (e.g. CESNET-TLS22-XS).\nUsed to filter the different subsection of the original dataset'" />
-                    Dataset Acronym Aliases
+              <div id="analysis_status" class="flex flex-col gap-2">
+                <label for="analysis_status">
+                    <i class="pi pi-info-circle" v-tooltip.right="'The status of analysis.'" />
+                    Dataset Analysis Status
                 </label>
-                <div class="card p-fluid p-hidden-label">
-                    <Chips 
-                      id="acronym_aliases"
-                      v-model="acronym_aliases"
-                      separator=","
-                      placeholder="Acronym Aliases..."
-                      add-on-blur="true"
-                      allow-duplicate="false"
-                      v-tooltip.bottom="'Acronym Aliases.'"
+                    <Select
+                      id="analysis_status"
+                      v-model="analysis_status"
+                      :options="analysis_status_options"
+                      option-label="status"
+                      placeholder="Analysis Status"
+                      aria-describedby="analysis_status-help"
                     />
-                </div>
               </div>
-              <div id="title" :class="{ error: titleError }" class="flex flex-column gap-2">
+              <div id="versions" class="flex flex-col gap-2">
+                <label for="versions">
+                    <i class="pi pi-info-circle" v-tooltip.right="'Additional version for the Dataset Acronym (e.g. CESNET-TLS22-XS).\nUsed to filter the different subsection of the original dataset'" />
+                    Dataset Versions
+                </label>
+                    <AutoComplete 
+                      id="versions"
+                      v-model="versions"
+                      placeholder="Versions..."
+                      aria-describedby="versions-help"
+                      :multiple="true"
+                      :typeahead="false"
+                      v-tooltip.bottom="'Versions.'"
+                      />
+              </div>
+              <div id="title" :class="{ error: titleError }" class="flex flex-col gap-2">
                 <label for="title">
                     <i class="pi pi-info-circle" v-tooltip.right="'Full name of the dataset'" />
                     Dataset Title
@@ -41,7 +53,7 @@
                   Dataset Title is required.
                 </small>
               </div>
-              <div id="name" :class="{ error: nameError }" class="flex flex-column gap-2">
+              <div id="name" :class="{ error: nameError }" class="flex flex-col gap-2">
                 <label for="name">
                     <i class="pi pi-info-circle" v-tooltip.right="'Full name of the submitter'" />
                     Submitter Name
@@ -57,7 +69,7 @@
                   Submitter Name is required.
                 </small>
               </div>
-              <div id="email" :class="{ error: emailError }" class="flex flex-column gap-2">
+              <div id="email" :class="{ error: emailError }" class="flex flex-col gap-2">
                 <label for="email">
                     <i class="pi pi-info-circle" v-tooltip.right="'Email of the submitter'" />
                     Submitter Email
@@ -73,7 +85,7 @@
                   Submitter Email is required.
                 </small>
               </div>
-              <div id="paperTitle" :class="{ error: paperTitleError }" class="flex flex-column gap-2">
+              <div id="paperTitle" :class="{ error: paperTitleError }" class="flex flex-col gap-2">
                 <label for="paperTitle">
                     <i class="pi pi-info-circle" v-tooltip.right="'Full title of the paper describing the dataset'" />
                     Paper Title
@@ -89,28 +101,26 @@
                   Paper Title is required.
                 </small>
               </div>
-              <div id="datasetAuthors" :class="{ error: authorsError }" class="flex flex-column gap-2">
+              <div id="datasetAuthors" :class="{ error: authorsError }" class="flex flex-col gap-2">
                 <label for="authors">
                     <i class="pi pi-info-circle" v-tooltip.right="'Authors of the dataset (comma separated)'" />
                     Dataset Authors
                 </label>
-                <div class="card p-fluid p-hidden-label">
-                    <Chips 
+                    <AutoComplete 
                       id="authors"
                       v-model="authors"
-                      separator=","
                       placeholder="Authors..."
-                      add-on-blur="true"
-                      allow-duplicate="false"
+                      aria-describedby="authors-help"
+                      :multiple="true"
+                      :typeahead="false"
                       v-tooltip.bottom="'The dataset authors.'"
-                    />
-                </div>
+                      />
                 <small v-if="authorsError" class="p-error">
                   <i class="pi pi-exclamation-circle" style="font-size: 0.8rem" />
                   Dataset Author is required.
                 </small>
               </div>
-              <div id="description" class="flex flex-column gap-2">
+              <div id="description" class="flex flex-col gap-2">
                 <label for="Description">
                     <i class="pi pi-info-circle" v-tooltip.right="'Short overview description of the dataset'" />
                     Description
@@ -125,7 +135,7 @@
                   v-tooltip.bottom="'The description of the dataset.'"
                 />
               </div>
-              <div id="format" class="flex flex-column gap-2">
+              <div id="format" class="flex flex-col gap-2">
                 <label for="format">
                     <i class="pi pi-info-circle" v-tooltip.right="'Identify file format of the dataset (e.g. pcap, json, txt, …)'" />
                     Dataset Format
@@ -138,24 +148,35 @@
                         placeholder="Format"
                         /> 
               </div>
-              <div id="tags" class="flex flex-column gap-2">
+              <div id="label_name" class="flex flex-col gap-2">
+                <label for="label_name">
+                    <i class="pi pi-info-circle" v-tooltip.right="'The Label'" />
+                    Dataset Label Name
+                </label>
+                <InputText
+                        id="label_name"
+                        v-model="label_name"
+                        :class="{ error: label_nameError }"
+                        aria-describedby="label_name-help"
+                        placeholder="Label Name"
+                        /> 
+              </div>
+              <div id="tags" class="flex flex-col gap-2">
                 <label for="tags">
                     <i class="pi pi-info-circle" v-tooltip.right="'Use tags to categorize the dataset (comma separated)'" />
                     Tags
                 </label>
-                <div class="card p-fluid p-hidden-label">
-                    <Chips 
+                    <AutoComplete 
                       id="tags"
                       v-model="tags"
-                      separator=","
                       placeholder="Tags..."
-                      add-on-blur="true"
-                      allow-duplicate="false"
+                      aria-describedby="tags-help"
+                      :multiple="true"
+                      :typeahead="false"
                       v-tooltip.bottom="'Tags to describe the dataset.'"
-                    />
-                </div>
+                      />
               </div>
-              <div id="doi" class="flex flex-column gap-2">
+              <div id="doi" class="flex flex-col gap-2">
                 <label for="doi">
                     <i class="pi pi-info-circle" v-tooltip.right="'DOI of the dataset.'" />
                     DOI
@@ -168,20 +189,7 @@
                         placeholder="DOI"
                         /> 
               </div>
-              <div id="originsDoi" class="flex flex-column gap-2">
-                <label for="originsDoi">
-                    <i class="pi pi-info-circle" v-tooltip.right="'DOI of the original dataset'" />
-                    Origins DOI
-                </label>
-                <InputText
-                        id="originsDoi"
-                        v-model="originsDoi"
-                        :class="{ error: originsDoiError }"
-                        aria-describedby="originsDoi-help"
-                        placeholder="Origins DOI"
-                        /> 
-              </div>
-              <div id="url" :class="{ error: urlError }" class="flex flex-column gap-2">
+              <div id="url" :class="{ error: urlError }" class="flex flex-col gap-2">
                 <label for="url">
                     <i class="pi pi-info-circle" v-tooltip.right="'URL of the dataset.'" />
                     Dataset File URL
@@ -193,7 +201,7 @@
                     placeholder="URL"
                     /> 
               </div>
-              <div id="url" :class="{ error: urlError }" class="flex flex-column gap-2">
+              <div id="url" :class="{ error: urlError }" class="flex flex-col gap-2">
                 <label for="url">
                     <i class="pi pi-info-circle" v-tooltip.right="'Upload new file.'" />
                     Dataset File Upload
@@ -211,15 +219,15 @@
                 upload-label="Upload"
               >
                 <template #empty>
-                  <p class="flex justify-content-center">
+                  <p class="flex justify-center">
                     Drag and drop file here to upload.
                   </p>
                 </template>
               </FileUpload>
               </div>
-      <footer class="flex justify-content-between">
+      <footer class="flex justify-between mb-4">
         <Button label="Save" icon="pi pi-save" class="mr-2" severity="success" @click="editDataset()"/>
-        <Button label="Back" icon="pi pi-arrow-left" class="mr-2" severity="secondary" @click="navigateTo(`/detail/${encodeURIComponent(dataset_acronym)}/${encodeURIComponent(dataset_aliases)}`)"/>
+        <Button label="Back" icon="pi pi-arrow-left" class="mr-2" severity="secondary" @click="navigateTo(`/detail/${encodeURIComponent(dataset_acronym)}/${encodeURIComponent(dataset_versions)}`)"/>
       </footer>
         </div>
           <!-- <footer><small>* required field</small></footer> -->
@@ -243,13 +251,20 @@ const toast = useToast();
 const dialogRef = inject("dialogRef")
 
 const dataset_acronym = ref("");
-const dataset_aliases = ref("");
-const dataset = ref();
+const dataset_versions = ref("");
+const dataset = ref({filename: ""});
+const analysis_status_options = ref([
+    {"status": "Requested"},
+    {"status": "In Progress"},
+    {"status": "Completed"},
+])
 
 const acronym = ref("");
 const acronymError = ref(false);
-const acronym_aliases = ref("");
-const acronym_aliasesError = ref(false);
+const analysis_status = ref("");
+const analysis_statusError = ref(false);
+const versions = ref("");
+const acronym_versionsError = ref(false);
 const title = ref("");
 const titleError = ref(false);
 const paperTitle = ref("");
@@ -260,10 +275,10 @@ const description = ref("");
 const descriptionError = ref(false);
 const format = ref("");
 const formatError = ref(false);
+const label_name = ref("");
+const label_nameError = ref(false);
 const doi = ref("");
 const doiError = ref(false);
-const originsDoi = ref("");
-const originsDoiError = ref(false);
 const name = ref("");
 const nameError = ref(false);
 const url = ref("");
@@ -280,25 +295,26 @@ watch(acronym, (value) => {
   acronymError.value = value.length === 0
 })
 
-const get_dataset = (_acronym, _aliases) => {
-    axios.get(`/api/datasets/${encodeURIComponent(_acronym)}/${_aliases}`)
+const get_dataset = (_acronym, _versions) => {
+    axios.get(`/api/datasets/${encodeURIComponent(_acronym)}/${_versions}`)
       .then(response => {
           dataset.value = response.data.dataset
           console.log(dataset.value)
 
           acronym.value = dataset.value.acronym
-          acronym_aliases.value = dataset.value.acronym_aliases.filter(alias => alias !== "")
+          versions.value = dataset.value.versions.filter(version => version !== "")
           title.value = dataset.value.title
           paperTitle.value = dataset.value.paper_title
           authors.value = dataset.value.authors.filter(author => author !== "")
           description.value = dataset.value.description
           format.value = dataset.value.format
           doi.value = dataset.value.doi
-          originsDoi.value = dataset.value.origins_doi
           name.value = dataset.value.submitter.name
           email.value = dataset.value.submitter.email
           tags.value = dataset.value.tags.filter(tag => tag !== "")
           url.value = dataset.value.url
+          analysis_status.value = { 'status': dataset.value.analysis_status}
+          label_name.value = dataset.value.label_name
       })
       .catch(error => {
             toast.add({
@@ -313,33 +329,34 @@ const get_dataset = (_acronym, _aliases) => {
 async function editDataset() {
   const formData = new FormData();
 //   formData.append("acronym", acronym.value)
-  formData.append("acronym_aliases", acronym_aliases.value === undefined ? [] : acronym_aliases.value);
+  formData.append("versions", versions.value === undefined ? [] : versions.value);
   formData.append("title", title.value);
   formData.append("paper_title", paperTitle.value);
   formData.append("authors", authors.value === undefined ? [] : authors.value);
   formData.append("description", description.value);
   formData.append("format", format.value);
   formData.append("doi", doi.value);
-  formData.append("origins_doi", originsDoi.value);
   formData.append("submitter", JSON.stringify({
     name: name.value,
     email: email.value
   }));
   formData.append("tags", tags.value === undefined ? [] : tags.value);
   formData.append("url", url.value);
+  formData.append("analysis_status", analysis_status.value.status);
+  formData.append("label_name", label_name.value);
 
   await axios
-    .post(`/api/datasets/${encodeURIComponent(dataset_acronym.value)}/${encodeURIComponent(dataset_aliases.value)}/edit`, formData, {
+    .post(`/api/datasets/${encodeURIComponent(dataset_acronym.value)}/${encodeURIComponent(dataset_versions.value)}/edit`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data', // Make sure to set the correct content type
       },
     })
     .then(() => {
-        let new_aliases = acronym_aliases.value
-        if (new_aliases == "") {
-            new_aliases = "*"
+        let new_versions = versions.value
+        if (new_versions == "") {
+            new_versions = "*"
         }
-      navigateTo(`/detail/${encodeURIComponent(dataset_acronym.value)}/${encodeURIComponent(new_aliases)}`)
+      navigateTo(`/detail/${encodeURIComponent(dataset_acronym.value)}/${encodeURIComponent(new_versions)}`)
     })
     .catch((error) => {
       console.log(error)
@@ -368,7 +385,7 @@ async function uploadFile(event) {
   });
 
   await axios
-    .post(`/api/datasets/${encodeURIComponent(dataset_acronym.value)}/${encodeURIComponent(dataset_aliases.value)}/upload`, formData, {
+    .post(`/api/datasets/${encodeURIComponent(dataset_acronym.value)}/${encodeURIComponent(dataset_versions.value)}/upload`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data', // Make sure to set the correct content type
       },
@@ -383,7 +400,7 @@ async function uploadFile(event) {
         life: 3000,
       });
       clearUpload()
-        axios.get(`/api/datasets/${encodeURIComponent(dataset_acronym.value)}/${encodeURIComponent(dataset_aliases.value)}`)
+        axios.get(`/api/datasets/${encodeURIComponent(dataset_acronym.value)}/${encodeURIComponent(dataset_versions.value)}`)
           .then(response => {
             dataset.value.filename = response.data.dataset.filename
           })
@@ -411,8 +428,8 @@ async function uploadFile(event) {
 onMounted(() => { 
     // dataset_title.value = "dataset_example_name"
     dataset_acronym.value = decodeURIComponent(route.params.acronym)
-    dataset_aliases.value = decodeURIComponent(route.params.aliases)
-    get_dataset(dataset_acronym.value, dataset_aliases.value)
+    dataset_versions.value = decodeURIComponent(route.params.versions)
+    get_dataset(dataset_acronym.value, dataset_versions.value)
 })
 
 </script>

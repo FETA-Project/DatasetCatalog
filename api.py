@@ -9,12 +9,13 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, R
 from fastapi.responses import FileResponse
 from pymongo.errors import DuplicateKeyError
 
-from models import (CollectionTool, Comment, Dataset, DatasetStatus, Submitter, User)
+from models import (AnalysisStatus, CollectionTool, Comment, Dataset, DatasetStatus, Submitter, User)
 from oauth2 import require_user, require_admin
 # from utils import disabled
 from werkzeug.utils import secure_filename
 import git
 from config import config
+from s3_client import s3
 
 
 api = APIRouter(prefix="/api")
@@ -66,7 +67,7 @@ async def get_requests():
 @api.post('/requests')
 async def upload(
     acronym: str = Form(...),
-    acronym_aliases: str = Form(""),
+    versions: str = Form(""),
     title: str = Form(""),
     paper_title: str = Form(""),
     authors: str = Form(""),
@@ -77,23 +78,22 @@ async def upload(
     submitter: str = Form(""),
     tags: str = Form(""),
     url: str = Form(""),
+    label_name: str = Form(""),
     file: Optional[UploadFile | None] = File(None),
     ):
 
-    # TODO: add support for file upload from url
-    # if no filename
-    # download from url
+    # TODO: what if there is no s3? do i store files locally?
 
-    acronym_aliases_list = acronym_aliases.split(",")
+    versions_list = versions.split(",")
 
-    if "*" in acronym_aliases_list:
-        acronym_aliases_list.remove("*")
-    if not len(acronym_aliases_list):
-        acronym_aliases_list = ['']
+    if "*" in versions_list:
+        versions_list.remove("*")
+    if not len(versions_list):
+        versions_list = ['']
 
-    found = await Dataset.find(Dataset.acronym == acronym, Dataset.acronym_aliases == acronym_aliases_list).first_or_none()
+    found = await Dataset.find(Dataset.acronym == acronym, Dataset.versions == versions_list).first_or_none()
     if found:
-        name = acronym if len(acronym_aliases_list) == 0 else f"{acronym}.({'.'.join(acronym_aliases_list)})"
+        name = acronym if len(versions_list) == 0 else f"{acronym}.({'.'.join(versions_list)})"
         raise HTTPException(
             status_code=400,
             detail=f"Dataset '{name}' already exists"
@@ -111,15 +111,11 @@ async def upload(
 
     date_submitted = datetime.now(UTC)
 
-    if file is not None:
-        filename = f'{secure_filename(acronym)}{pathlib.Path(file.filename).suffix}'
-    else:
-        filename = None
 
     try:
         dataset = Dataset(
             acronym=acronym,
-            acronym_aliases=acronym_aliases_list,
+            versions=versions_list,
             title=title,
             paper_title=paper_title,
             authors=authors,
@@ -131,13 +127,16 @@ async def upload(
             date_submitted=date_submitted,
             status=DatasetStatus.ACCEPTED,
             tags=tags,
-            filename=filename,
+            label_name=label_name,
+            # filename=filename,
             url=url,
         )
 
-        if filename is not None:    
-            with open(dataset.get_file_path(), "wb") as f:
-                f.write(file.file.read())
+        if file is not None:
+            dataset.filename = f'{dataset.get_name()}{pathlib.Path(file.filename).suffix}'
+            s3.client.put_object(
+                Bucket=config.S3_BUCKET, Key=dataset.filename, Body=file.file.read()
+            )
 
         dataset.create_analysis()
         await dataset.insert()
@@ -157,49 +156,6 @@ async def upload(
         detail=f"Could not save dataset '{acronym}': {exc}"
     )
 
-    # try:
-    #     repo = pydoi.validate_doi(doi)
-    #     repo = doi
-    #     response = requests.get(repo+"?download")
-    #     if response.status_code == 200:
-    #         print(response)
-    #         metadata = response.json()
-    # except ValueError:
-    #     metadata = "Could not load metadata"
-
-
-
-@api.head('/requests/{acronym:path}')
-async def request_accept(acronym: str, user_email: str = Depends(require_admin)):
-    dataset = await Dataset.find(Dataset.acronym == acronym).first_or_none()
-
-    if dataset is None:
-        Dataset.not_found(acronym)
-
-    dataset.status = DatasetStatus.ACCEPTED
-    # TODO: push analysis to git
-    await dataset.save()
-
-    # TODO: change requested to analyzing
-    return {"message": f"Request for {acronym} accepted"}
-
-
-@api.delete('/requests/{acronym:path}')
-async def request_reject(acronym: str, user_email: str = Depends(require_user)):
-    user = await User.find(User.email == user_email).first_or_none()
-
-    request = await Dataset.find(Dataset.acronym == acronym).first_or_none()
-
-    if request is None:
-        Dataset.not_found(acronym)
-
-    if request.submitter.get('email') != user.email:
-        user.check_admin()
-
-    await request.delete()
-
-    return {"message": f"Request for {acronym} rejected"}
-
 
 # === DATASETS ===
 
@@ -208,82 +164,61 @@ async def datasets():
     datasets = await Dataset.find(Dataset.status != DatasetStatus.REQUESTED).to_list()
     ret = []
     for dataset in datasets:
-        _parents, _children = await dataset.get_related()
         _dict = dataset.to_dict()
-        _dict.update({'parents': _parents, 'children': _children})
+        _dict.update(await dataset.get_related())
         ret.append(_dict)
 
     return ret
 
 
-@api.get('/datasets/{acronym:path}/{aliases:path}')
-async def dataset(acronym: str, aliases: str):
-    aliases_list = [''] if aliases == "*" else aliases.split(",")
+@api.get('/datasets/{acronym:path}/{versions:path}')
+async def dataset(acronym: str, versions: str):
+    versions_list = [''] if versions == "*" else versions.split(",")
 
-    dataset = await Dataset.find(Dataset.acronym == acronym, Dataset.acronym_aliases == aliases_list).first_or_none()
+    dataset = await Dataset.find(Dataset.acronym == acronym, Dataset.versions == versions_list).first_or_none()
     
     if dataset is None:
         Dataset.not_found(acronym)
 
-    alias_children = []
-    alias_parents = []
-
-    if dataset.acronym_aliases != ['']:
-        alias_children = await Dataset.find(
-            All(Dataset.acronym_aliases, dataset.acronym_aliases)
-        ).to_list()
-        alias_parents = await Dataset.find(
-            Dataset.acronym_aliases == dataset.acronym_aliases[:-1]
-        ).to_list()
-
-    related = []
-    origin = []
-    same_origin = []
-
-    if dataset.doi != "":
-        related = await Dataset.find(Dataset.origins_doi == dataset.doi).to_list()
-    if dataset.origins_doi != "":
-        origin = await Dataset.find(Dataset.doi == dataset.origins_doi).to_list()
-        same_origin = await Dataset.find(Dataset.origins_doi == dataset.origins_doi).to_list()
-
-    return {
+    ret_dict = {
         'dataset': dataset.to_dict(),
-        'related_datasets': [{'acronym': d.acronym, 'aliases': d.acronym_aliases} for d in related if d.acronym != dataset.acronym],
-        'origin_datasets': [{'acronym': d.acronym, 'aliases': d.acronym_aliases} for d in origin if d.acronym != dataset.acronym],
-        'same_origin_datasets': [{'acronym': d.acronym, 'aliases': d.acronym_aliases} for d in same_origin if d.acronym != dataset.acronym],
-        'alias_children': [{'acronym': d.acronym, 'aliases': d.acronym_aliases} for d in alias_children if d.acronym_aliases != dataset.acronym_aliases],
-        'alias_parents': [{'acronym': d.acronym, 'aliases': d.acronym_aliases} for d in alias_parents if d.acronym_aliases != dataset.acronym_aliases],
         'edit_analysis_url': dataset._git_edit_url()
     }
 
-# FIXME: should probably be something like /api/datasets/{acronym:path}/download
-@api.get('/files/{acronym:path}/{aliases:path}')
-async def dataset_download(acronym: str, aliases: str):
-    aliases_list = [''] if aliases == "*" else aliases.split(",")
+    ret_dict.update(await dataset.get_related())
 
-    dataset = await Dataset.find(Dataset.acronym == acronym, Dataset.acronym_aliases == aliases_list).first_or_none()
+    return ret_dict
+
+# FIXME: should probably be something like /api/datasets/{acronym:path}/download
+@api.get('/files/{acronym:path}/{versions:path}')
+async def dataset_download(acronym: str, versions: str):
+    versions_list = [''] if versions == "*" else versions.split(",")
+
+    dataset = await Dataset.find(Dataset.acronym == acronym, Dataset.versions == versions_list).first_or_none()
 
     if dataset is None:
         Dataset.not_found(acronym)
 
-    filepath = dataset.get_file_path()
-    if filepath is None:
+    if dataset.filename is None:
         raise HTTPException(
             status_code=404,
             detail=f"File for dataset '{acronym}' not found"
         )
 
-    return FileResponse(
-        os.path.abspath(filepath),
-        media_type="application/octet-stream",
-        filename=dataset.filename
+    filelink = s3.client.generate_presigned_url(
+        "get_object",
+        Params={"Bucket": "katoda", "Key": dataset.filename},
+        ExpiresIn=3600,
     )
 
-@api.get('/analysis_files/{acronym:path}/{aliases:path}/{filename:path}')
-async def analysis_files_download(acronym: str, aliases: str, filename: str):
-    aliases_list = [''] if aliases == "*" else aliases.split(",")
+    return {"filelink": filelink}
 
-    dataset = await Dataset.find(Dataset.acronym == acronym, Dataset.acronym_aliases == aliases_list).first_or_none()
+
+@api.get('/analysis_files/{acronym:path}/{versions:path}/{filename:path}')
+async def analysis_files_download(acronym: str, versions: str, filename: str):
+    versions_list = [''] if versions == "*" else versions.split(",")
+
+    dataset = await Dataset.find(Dataset.acronym == acronym, Dataset.versions == versions_list).first_or_none()
 
     if dataset is None:
         Dataset.not_found(acronym)
@@ -307,11 +242,11 @@ async def analysis_files_download(acronym: str, aliases: str, filename: str):
         filename=filename
     )
 
-@api.post('/datasets/{acronym:path}/{aliases:path}/edit')
+@api.post('/datasets/{acronym:path}/{curr_versions:path}/edit')
 async def dataset_edit(
     acronym: str,
-    aliases: str,
-    acronym_aliases: Optional[str] = Form(""),
+    curr_versions: str,
+    versions: Optional[str] = Form(""),
     title: Optional[str] = Form(""),
     paper_title: Optional[str] = Form(""),
     authors: Optional[str] = Form(""),
@@ -322,27 +257,29 @@ async def dataset_edit(
     submitter: Optional[str] = Form("{\"name\": \"\", \"email\": \"\"}"),
     tags: Optional[str] = Form(""),
     url: Optional[str] = Form(""),
+    analysis_status: Optional[str] = Form(""),
+    label_name: Optional[str] = Form(""),
 ):
-    aliases_list = [''] if aliases == "*" else aliases.split(",")
-    dataset = await Dataset.find(Dataset.acronym == acronym, Dataset.acronym_aliases == aliases_list).first_or_none()
+    curr_versions_list = [''] if curr_versions == "*" else curr_versions.split(",")
+    dataset = await Dataset.find(Dataset.acronym == acronym, Dataset.versions == curr_versions_list).first_or_none()
     if dataset is None:
         Dataset.not_found(acronym)
 
     old_path = dataset.get_analysis_path()
 
-    acronym_aliases_list = acronym_aliases.split(',')
-    if "*" in acronym_aliases_list:
-        acronym_aliases_list.remove("*")
-    if not len(acronym_aliases_list):
-        acronym_aliases_list = ['']
+    versions_list = versions.split(',')
+    if "*" in versions_list:
+        versions_list.remove("*")
+    if not len(versions_list):
+        versions_list = ['']
 
-    if aliases_list != acronym_aliases_list:
-        dataset.acronym_aliases = acronym_aliases_list
-        found = await Dataset.find(Dataset.acronym == dataset.acronym, Dataset.acronym_aliases == dataset.acronym_aliases).first_or_none()
+    if curr_versions_list != versions_list:
+        dataset.versions = versions_list
+        found = await Dataset.find(Dataset.acronym == dataset.acronym, Dataset.versions == dataset.versions).first_or_none()
         if found:
             raise HTTPException(
                 status_code=409,
-                detail=f"Dataset with acronym '{dataset.acronym}' and aliases '{dataset.acronym_aliases}' already exists"
+                detail=f"Dataset with acronym '{dataset.acronym}' and versions '{dataset.versions}' already exists"
             )
 
     dataset.title = title
@@ -365,9 +302,28 @@ async def dataset_edit(
 
     dataset.url = url
 
+    dataset.analysis_status = AnalysisStatus(analysis_status)
+
+    dataset.label_name = label_name
+
     try:
         await dataset.save()
         dataset.update_analysis(old_path=old_path)
+
+        if dataset.filename != dataset.get_name():
+            _new_filename = f"{dataset.get_name()}{pathlib.Path(dataset.filename).suffix}"
+            s3.client.copy_object(
+                Bucket=config.S3_BUCKET,
+                CopySource={"Bucket": "katoda", "Key": dataset.filename},
+                Key=_new_filename,
+            )
+            s3.client.delete_object(
+                Bucket=config.S3_BUCKET, Key=dataset.filename
+            )
+
+            dataset.filename = _new_filename
+            await dataset.save()
+
     except Exception as exc:
         raise HTTPException(
         status_code=500,
@@ -376,33 +332,42 @@ async def dataset_edit(
 
     return {"message": f"Dataset {acronym} updated"}
 
-@api.post('/datasets/{acronym:path}/{aliases:path}/upload')
-async def dataset_upload_file(acronym: str, aliases: str, file: Optional[UploadFile | None] = File(None)):
-    aliases_list = [''] if aliases == "*" else aliases.split(",")
-    dataset = await Dataset.find(Dataset.acronym == acronym, Dataset.acronym_aliases == aliases_list).first_or_none()
+@api.post('/datasets/{acronym:path}/{versions:path}/upload')
+async def dataset_upload_file(acronym: str, versions: str, file: Optional[UploadFile | None] = File(None)):
+    versions_list = [''] if versions == "*" else versions.split(",")
+    dataset = await Dataset.find(Dataset.acronym == acronym, Dataset.versions == versions_list).first_or_none()
 
     if dataset is None:
         Dataset.not_found(acronym)
 
-    if dataset.filename is not None:
-        os.remove(dataset.get_file_path())
+    old_filename = dataset.filename
 
-    dataset.filename = f'{secure_filename(acronym)}{pathlib.Path(file.filename).suffix}'
-    with open(dataset.get_file_path(), "wb") as f:
-        f.write(file.file.read())
+    dataset.filename = f'{dataset.get_name()}{pathlib.Path(file.filename).suffix}'
+
+    s3.client.put_object(
+        Bucket=config.S3_BUCKET, Key=dataset.filename, Body=file.file.read()
+    )
+
+    if old_filename is not None and old_filename != dataset.filename:
+        s3.client.delete_object(
+            Bucket=config.S3_BUCKET, Key=old_filename
+        )
 
     await dataset.save()
 
     return {"message": f"File for dataset {acronym} uploaded"}
 
 
-@api.delete('/datasets/{acronym:path}/{aliases:path}')
-async def delete(acronym: str, aliases: str, user_email: str = Depends(require_admin)):
-    aliases_list = [''] if aliases == "*" else aliases.split(",")
-    dataset = await Dataset.find(Dataset.acronym == acronym, Dataset.acronym_aliases == aliases_list).first_or_none()
+@api.delete('/datasets/{acronym:path}/{versions:path}')
+async def delete(acronym: str, versions: str, user_email: str = Depends(require_admin)):
+    versions_list = [''] if versions == "*" else versions.split(",")
+    dataset = await Dataset.find(Dataset.acronym == acronym, Dataset.versions == versions_list).first_or_none()
 
-    if dataset is None:
-        Dataset.not_found(acronym)
+    if dataset.filename is not None:
+        s3.client.delete_object(
+            Bucket=config.S3_BUCKET, Key=dataset.filename
+        )
+
 
     await dataset.delete()
     # TODO: also delete analysis?

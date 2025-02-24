@@ -4,7 +4,7 @@ import os
 import pathlib
 import shutil
 from threading import Thread
-from typing import Optional
+from typing import Any, Optional
 import git
 
 import pymongo
@@ -64,6 +64,14 @@ class DatasetStatus(str, Enum):
     ANALYZING = "analyzing"
     DONE = "done"
 
+class AnalysisStatus(str, Enum):
+    REQUESTED = "Requested"
+    IN_PROGRESS = "In Progress"
+    COMPLETES = "Completed"
+
+    @classmethod
+    def _missing_(self, _: Any):
+        return self.REQUESTED
 
 class Submitter(TypedDict):
     name: str
@@ -72,7 +80,7 @@ class Submitter(TypedDict):
 
 class Dataset(Document):
     acronym: str
-    acronym_aliases: Optional[list[str]] = []
+    versions: Optional[list[str]] = []
     title: Optional[str] = "Unknown"
     paper_title: Optional[str] = "Unknown"
     authors: Optional[list[str]] = ["Unknown"]
@@ -81,11 +89,13 @@ class Dataset(Document):
     doi: Optional[str] = ""
     origins_doi: Optional[str] =""
     submitter: Submitter
-    date_submitted: Optional[datetime] = None
     status: DatasetStatus = DatasetStatus.REQUESTED
+    analysis_status: AnalysisStatus = AnalysisStatus.REQUESTED
+    date_submitted: Optional[datetime] = None
     tags: Optional[list[str]] = []
     filename: Optional[str | None] = None
     url: Optional[str | None] = None
+    label_name: Optional[str] = ""
 
     class Settings:
         name = "datasets"
@@ -94,7 +104,7 @@ class Dataset(Document):
         return {
             "id": str(self.id),
             "acronym": self.acronym,
-            "acronym_aliases": self.acronym_aliases,
+            "versions": self.versions,
             "title": self.title,
             "paper_title": self.paper_title,
             "authors": self.authors,
@@ -105,29 +115,50 @@ class Dataset(Document):
             "date_submitted": self.date_submitted,
             "submitter": self.submitter,
             "status": self.status.value,
+            "analysis_status": self.analysis_status.value,
             "tags": self.tags,
             "filename": self.filename,
             "url": self.url,
             "analysis": self.get_analysis(),
             "files": self.get_files(),
+            "label_name": self.label_name
         }
 
+    @staticmethod
+    def _is_sublist(a, b):
+        for i in range(len(b)-len(a)+1):
+            if b[i:i+len(a)] == a:
+                return True
+        return False
+
+    def is_parent(self, other):
+        return self._is_sublist(self.versions, other.versions)
+
+    def is_child(self, other):
+        return self._is_sublist(other.versions, self.versions)
+
+    def is_sibling(self, other):
+        return other.versions[:-1] == (self.versions[:-1])
+
     async def get_related(self) -> tuple[list["Dataset"], list["Dataset"]]:
-        alias_parents = []
-        alias_children = []
+        version_parents = []
+        version_children = []
+        version_siblings = []
 
-        if self.acronym_aliases != ['']:
-            alias_children = await Dataset.find(
-                All(Dataset.acronym_aliases, self.acronym_aliases)
-            ).to_list()
-            alias_parents = await Dataset.find(
-                Dataset.acronym_aliases == self.acronym_aliases[:-1]
-            ).to_list()
+        all_datasets = await Dataset.find().to_list()
+        for d in all_datasets:
+            if d.is_parent(self):
+                version_parents.append(d)
+            elif d.is_child(self):
+                version_children.append(d)
+            elif d.is_sibling(self):
+                version_siblings.append(d)
 
-        return (
-            [{'acronym': d.acronym, 'acronym_aliases': d.acronym_aliases} for d in alias_parents if d.acronym_aliases != self.acronym_aliases],
-            [{'acronym': d.acronym, 'acronym_aliases': d.acronym_aliases} for d in alias_children if d.acronym_aliases != self.acronym_aliases]
-        )
+        return {
+            'version_parents': [{'acronym': d.acronym, 'versions': d.versions} for d in version_parents if d.versions != self.versions],
+            'version_children': [{'acronym': d.acronym, 'versions': d.versions} for d in version_children if d.versions != self.versions],
+            'version_siblings': [{'acronym': d.acronym, 'versions': d.versions} for d in version_siblings if (d.versions != self.versions and d.acronym != self.acronym) and len(d.versions) > 1]
+        }
 
     def get_files(self) -> list[str]:
         files = []
@@ -142,13 +173,13 @@ class Dataset(Document):
         return files
 
     def get_name(self) -> str:
-        if len(self.acronym_aliases) == 0:
+        if len(self.versions) == 0:
             return secure_filename(self.acronym)
-        return secure_filename(f"{self.acronym}.{'.'.join(self.acronym_aliases)}")
+        return secure_filename(f"{self.acronym}.{'.'.join(self.versions)}")
 
     def to_toml_dict(self) -> dict:
         toml_dict = self.to_dict()
-        toml_dict['acronym_aliases'] = ", ".join(toml_dict['acronym_aliases'])
+        toml_dict['versions'] = ", ".join(toml_dict['versions'])
         toml_dict['authors'] = ", ".join(toml_dict['authors'])
         toml_dict['tags'] = ", ".join(toml_dict['tags'])
         toml_dict['submitter'] = f"{toml_dict['submitter']['name']} <{toml_dict['submitter']['email']}>"
@@ -249,8 +280,8 @@ class Dataset(Document):
         return f"{config.GIT_URL}{_edit}"
         #https://gitlab.com/tranquiloSan/katoda-test/-/edit/main/asdf/analysis.toml?ref_type=heads
 
-    def not_found(acronym: str, aliases: list[str] = []):
-        name = acronym if len(aliases) == 0 else f"{acronym}.({'.'.join(aliases)})"
+    def not_found(acronym: str, versions: list[str] = []):
+        name = acronym if len(versions) == 0 else f"{acronym}.({'.'.join(versions)})"
         raise HTTPException(
             status_code=404,
             detail=f"Dataset '{name}' does not exist"
