@@ -13,10 +13,12 @@
                 <Button label="Submit Dataset" icon="pi pi-ticket" class="mr-2" @click="showUpload" />
                 <Button v-if="user && user.is_admin" label="Delete" icon="pi pi-trash" class="mr-2" severity="danger" @click="deleteData()" :disabled="!selectedData || !selectedData.length" />
             </div>
-            <span class="p-input-icon-left">
-                <i class="pi pi-search" />
+            <IconField>
+                <InputIcon>
+                    <i class="pi pi-search" />
+                </InputIcon>
                 <InputText v-model="filters['global'].value" placeholder="Search..." />
-            </span>
+            </IconField>
         </div>
     </template>
     <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
@@ -46,7 +48,8 @@
     <Column field="analysis_status" header="Analysis Status">
       <template #body="slotProps">
         <div class="flex gap-1">
-            <Chip :label="slotProps.data.analysis_status"></Chip>
+            <!-- <Chip :label="slotProps.data.analysis_status"></Chip> -->
+            <Badge :value="slotProps.data.analysis_status" :severity="analysisStatusColor(slotProps.data.analysis_status)" class="text-xl w-auto"/>
         </div>
       </template>
     </Column>
@@ -57,9 +60,9 @@
     </Column>
     <template #expansion="slotProps">
         <div class="flex">
-            <ul style="list-style: none" v-if="slotProps.data.children.length > 0">
+            <ul class="list-none pl-4 space-y-1" v-if="slotProps.data.children.length > 0">
                 <li> <b>Children:</b>
-                    <ul>
+                    <ul class="list-none pl-6 space-y-1">
                         <li v-for="child in slotProps.data.children">
                             <span class="detail-link" @click="showDetail(child.acronym, child.versions)">{{ child.acronym+'['+child.versions+']'}}</span>
                         </li>
@@ -68,20 +71,20 @@
             </ul>
         </div>
         <div class="flex">
-            <ul style="list-style: none">
+            <ul class="list-none pl-4 space-y-1">
                 <li><b>Paper Title: </b> {{ slotProps.data.paper_title }}</li>
-                <li class="flex gap-2"> <b>Authors: </b> 
+                <li class="flex items-center gap-2"> <b>Authors: </b> 
                     <div class="flex gap-1" v-if="slotProps.data.authors.length > 1 || slotProps.data.authors[0] != ''">
-                        <Chip v-for="author in slotProps.data.authors">{{ author }}</Chip>
+                        <Chip class="text-sm px-1 py-1" v-for="author in slotProps.data.authors">{{ author }}</Chip>
                     </div>
                 </li>
                 <li><b>Date Submitted: </b> <FormatedDate :datetime="slotProps.data.date_submitted"/></li>
                 <li>
-                    <b>Submitter: </b>
-                    <ul>
+                    <b>Submitter: </b> {{ slotProps.data.submitter.name }} <{{ slotProps.data.submitter.email}}>
+                    <!-- <ul class="max-w-md pl-6 space-y-1 list-disc list-inside">
                         <li><b>Name: </b> {{ slotProps.data.submitter.name }}</li>
                         <li><b>Email: </b> {{ slotProps.data.submitter.email}}</li>
-                    </ul>
+                    </ul> -->
                 </li>
                 <li> <b>Description: </b> {{ slotProps.data.description }} </li>
             </ul>
@@ -119,10 +122,22 @@ const datasets = ref([])
 
 const UploadDialog = defineAsyncComponent(() => import('../components/upload.vue'))
 
+const analysisStatusColor = (status) => {
+    if (status == "Requested") {
+        return "info"
+    } else if (status == "In Progress") {
+        return "warn"
+    } else if (status == "Completed") {
+        return "success"
+    } else {
+        return "danger"
+    }
+}
+
 const get_datasets = () => {
 //   datasets.value = fake_data
 //   return
-  axios.get('/api/datasets')
+  axios.get(`http://localhost:8000/api/datasets`)
     .then(response => {
         console.log(response.data)
       datasets.value = response.data.filter(d => d.parents.length == 0)
@@ -154,9 +169,9 @@ const get_datasets = () => {
     })
 }
 
-onMounted(() => {
-    get_datasets()
-})
+// onMounted(() => {
+//     get_datasets()
+// })
 
 const showDetail = (acronym, versions) => {
     console.log(acronym, versions)
@@ -223,6 +238,8 @@ const showUpload = () => {
 }
 
 onMounted(() => { 
+    get_datasets()
+
     axios.get('/api/users/me')
     .then(response => {
         user.value = response.data

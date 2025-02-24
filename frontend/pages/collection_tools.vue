@@ -13,10 +13,12 @@
                 <Button label="Create Collection Tool" icon="pi pi-ticket" class="mr-2" @click="showUpload" />
                 <Button v-if="user && user.is_admin" label="Delete" icon="pi pi-trash" class="mr-2" severity="danger" @click="deleteData()" :disabled="!selectedData || !selectedData.length" />
             </div>
-            <span class="p-input-icon-left">
-                <i class="pi pi-search" />
+            <IconField>
+                <InputIcon>
+                    <i class="pi pi-search" />
+                </InputIcon>
                 <InputText v-model="filters['global'].value" placeholder="Search..." />
-            </span>
+            </IconField>
         </div>
     </template>
     <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>

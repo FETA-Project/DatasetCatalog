@@ -60,19 +60,19 @@ const darkModeIcon = ref('pi pi-fw pi-sun')
 
 onMounted(() => {
     if (localStorage.getItem('darkMode') === 'true') {
-        document.documentElement.classList.add('dark-mode');
+        document.documentElement.classList.add('dark');
         darkModeIcon.value = 'pi pi-fw pi-moon';
     }
 })
 
 function getDarkMode() {
-    return document.documentElement.classList.contains('dark-mode');
+    return document.documentElement.classList.contains('dark');
 }
 
 function toggleDarkMode() {
-    document.documentElement.classList.toggle('dark-mode');
+    document.documentElement.classList.toggle('dark');
 
-    if (document.documentElement.classList.contains('dark-mode')) {
+    if (document.documentElement.classList.contains('dark')) {
         localStorage.setItem('darkMode', 'true');
         darkModeIcon.value = 'pi pi-fw pi-moon';
     } else {
