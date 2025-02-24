@@ -185,9 +185,9 @@ const get_dataset = (acronym, versions) => {
     console.log(acronym)
     console.log(versions)
     axios.all([
-        axios.get(`http://localhost:8000/api/datasets/${encodeURIComponent(acronym)}/${encodeURIComponent(versions)}`),
+        axios.get(`/api/datasets/${encodeURIComponent(acronym)}/${encodeURIComponent(versions)}`),
         // axios.get(`/api/comments/${encodeURIComponent(acronym)}/${encodeURIComponent(versions)}`),
-        axios.get(`http://localhost:8000/api/comments/${encodeURIComponent(acronym)}`),
+        axios.get(`/api/comments/${encodeURIComponent(acronym)}`),
     ])
       .then(axios.spread((response_dataset, response_comments) => {
         console.log(response_dataset.data)
