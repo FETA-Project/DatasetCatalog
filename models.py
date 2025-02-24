@@ -124,22 +124,41 @@ class Dataset(Document):
             "label_name": self.label_name
         }
 
+    @staticmethod
+    def _is_sublist(a, b):
+        for i in range(len(b)-len(a)+1):
+            if b[i:i+len(a)] == a:
+                return True
+        return False
+
+    def is_parent(self, other):
+        return self._is_sublist(self.versions, other.versions)
+
+    def is_child(self, other):
+        return self._is_sublist(other.versions, self.versions)
+
+    def is_sibling(self, other):
+        return other.versions[:-1] == (self.versions[:-1])
+
     async def get_related(self) -> tuple[list["Dataset"], list["Dataset"]]:
         version_parents = []
         version_children = []
+        version_siblings = []
 
-        if self.versions != ['']:
-            version_children = await Dataset.find(
-                All(Dataset.versions, self.versions)
-            ).to_list()
-            version_parents = await Dataset.find(
-                Dataset.versions == self.versions[:-1]
-            ).to_list()
+        all_datasets = await Dataset.find().to_list()
+        for d in all_datasets:
+            if d.is_parent(self):
+                version_parents.append(d)
+            elif d.is_child(self):
+                version_children.append(d)
+            elif d.is_sibling(self):
+                version_siblings.append(d)
 
-        return (
-            [{'acronym': d.acronym, 'versions': d.versions} for d in version_parents if d.versions != self.versions],
-            [{'acronym': d.acronym, 'versions': d.versions} for d in version_children if d.versions != self.versions]
-        )
+        return {
+            'version_parents': [{'acronym': d.acronym, 'versions': d.versions} for d in version_parents if d.versions != self.versions],
+            'version_children': [{'acronym': d.acronym, 'versions': d.versions} for d in version_children if d.versions != self.versions],
+            'version_siblings': [{'acronym': d.acronym, 'versions': d.versions} for d in version_siblings if (d.versions != self.versions and d.acronym != self.acronym) and len(d.versions) > 1]
+        }
 
     def get_files(self) -> list[str]:
         files = []

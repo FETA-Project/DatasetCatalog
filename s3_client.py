@@ -20,7 +20,7 @@ class S3Client:
             config=Config(user_agent=config.S3_USER),
         )
 
-        self.client.create_bucket(Bucke=config.S3_BUCKET)
+        self.client.create_bucket(Bucket=config.S3_BUCKET)
 
 
     def cleanup_s3(self) -> None:

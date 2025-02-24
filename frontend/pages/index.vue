@@ -60,10 +60,10 @@
     </Column>
     <template #expansion="slotProps">
         <div class="flex">
-            <ul class="list-none pl-4 space-y-1" v-if="slotProps.data.children.length > 0">
+            <ul class="list-none pl-4 space-y-1" v-if="slotProps.data.version_children.length > 0">
                 <li> <b>Children:</b>
                     <ul class="list-none pl-6 space-y-1">
-                        <li v-for="child in slotProps.data.children">
+                        <li v-for="child in slotProps.data.version_children">
                             <span class="detail-link" @click="showDetail(child.acronym, child.versions)">{{ child.acronym+'['+child.versions+']'}}</span>
                         </li>
                     </ul>
@@ -140,7 +140,7 @@ const get_datasets = () => {
   axios.get(`http://localhost:8000/api/datasets`)
     .then(response => {
         console.log(response.data)
-      datasets.value = response.data.filter(d => d.parents.length == 0)
+      datasets.value = response.data.filter(d => d.version_parents.length == 0)
       console.log(datasets.value)
       datasets.value.forEach(d => {
           // add metadata to datasets, replace underscores with spaces in keys

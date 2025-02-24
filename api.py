@@ -135,7 +135,7 @@ async def upload(
         if file is not None:
             dataset.filename = f'{dataset.get_name()}{pathlib.Path(file.filename).suffix}'
             s3.client.put_object(
-                Bucke=config.S3_BUCKET, Key=dataset.filename, Body=file.file.read()
+                Bucket=config.S3_BUCKET, Key=dataset.filename, Body=file.file.read()
             )
 
         dataset.create_analysis()
@@ -164,9 +164,8 @@ async def datasets():
     datasets = await Dataset.find(Dataset.status != DatasetStatus.REQUESTED).to_list()
     ret = []
     for dataset in datasets:
-        _parents, _children = await dataset.get_related()
         _dict = dataset.to_dict()
-        _dict.update({'parents': _parents, 'children': _children})
+        _dict.update(await dataset.get_related())
         ret.append(_dict)
 
     return ret
@@ -181,36 +180,14 @@ async def dataset(acronym: str, versions: str):
     if dataset is None:
         Dataset.not_found(acronym)
 
-    version_children = []
-    version_parents = []
-
-    if dataset.versions != ['']:
-        version_children = await Dataset.find(
-            All(Dataset.versions, dataset.versions)
-        ).to_list()
-        version_parents = await Dataset.find(
-            Dataset.versions == dataset.versions[:-1]
-        ).to_list()
-
-    related = []
-    origin = []
-    same_origin = []
-
-    if dataset.doi != "":
-        related = await Dataset.find(Dataset.origins_doi == dataset.doi).to_list()
-    if dataset.origins_doi != "":
-        origin = await Dataset.find(Dataset.doi == dataset.origins_doi).to_list()
-        same_origin = await Dataset.find(Dataset.origins_doi == dataset.origins_doi).to_list()
-
-    return {
+    ret_dict = {
         'dataset': dataset.to_dict(),
-        'related_datasets': [{'acronym': d.acronym, 'versions': d.versions} for d in related if d.acronym != dataset.acronym],
-        'origin_datasets': [{'acronym': d.acronym, 'versions': d.versions} for d in origin if d.acronym != dataset.acronym],
-        'same_origin_datasets': [{'acronym': d.acronym, 'versions': d.versions} for d in same_origin if d.acronym != dataset.acronym],
-        'version_children': [{'acronym': d.acronym, 'versions': d.versions} for d in version_children if d.versions != dataset.versions],
-        'version_parents': [{'acronym': d.acronym, 'versions': d.versions} for d in version_parents if d.versions != dataset.versions],
         'edit_analysis_url': dataset._git_edit_url()
     }
+
+    ret_dict.update(await dataset.get_related())
+
+    return ret_dict
 
 # FIXME: should probably be something like /api/datasets/{acronym:path}/download
 @api.get('/files/{acronym:path}/{versions:path}')
@@ -336,12 +313,12 @@ async def dataset_edit(
         if dataset.filename != dataset.get_name():
             _new_filename = f"{dataset.get_name()}{pathlib.Path(dataset.filename).suffix}"
             s3.client.copy_object(
-                Bucke=config.S3_BUCKET,
+                Bucket=config.S3_BUCKET,
                 CopySource={"Bucket": "katoda", "Key": dataset.filename},
                 Key=_new_filename,
             )
             s3.client.delete_object(
-                Bucke=config.S3_BUCKET, Key=dataset.filename
+                Bucket=config.S3_BUCKET, Key=dataset.filename
             )
 
             dataset.filename = _new_filename
@@ -368,12 +345,12 @@ async def dataset_upload_file(acronym: str, versions: str, file: Optional[Upload
     dataset.filename = f'{dataset.get_name()}{pathlib.Path(file.filename).suffix}'
 
     s3.client.put_object(
-        Bucke=config.S3_BUCKET, Key=dataset.filename, Body=file.file.read()
+        Bucket=config.S3_BUCKET, Key=dataset.filename, Body=file.file.read()
     )
 
     if old_filename is not None and old_filename != dataset.filename:
         s3.client.delete_object(
-            Bucke=config.S3_BUCKET, Key=old_filename
+            Bucket=config.S3_BUCKET, Key=old_filename
         )
 
     await dataset.save()
@@ -388,7 +365,7 @@ async def delete(acronym: str, versions: str, user_email: str = Depends(require_
 
     if dataset.filename is not None:
         s3.client.delete_object(
-            Bucke=config.S3_BUCKET, Key=dataset.filename
+            Bucket=config.S3_BUCKET, Key=dataset.filename
         )
 
 

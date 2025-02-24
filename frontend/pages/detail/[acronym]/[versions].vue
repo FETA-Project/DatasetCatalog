@@ -9,7 +9,6 @@
                 + dataset.versions.join('.') 
                 }}
             <br/>
-            <!-- TODO: Colors of badge -->
             <Badge :value="'Analysis: ' + dataset.analysis_status" :severity="analysisStatusColor(dataset.analysis_status)" class="text-xl w-auto"/>
         </h1>
 
@@ -30,6 +29,12 @@
                 <div v-if="version_children.length > 0">
                     <b>Dataset's Children</b>
                     <li v-for="dataset in version_children">
+                        <span class="detail-link" @click="showDetail(dataset.acronym, dataset.versions)">{{ dataset.acronym+'['+dataset.versions+']'}}</span>
+                    </li>
+                </div>
+                <div v-if="version_siblings.length > 0">
+                    <b>Dataset's Siblings</b>
+                    <li v-for="dataset in version_siblings">
                         <span class="detail-link" @click="showDetail(dataset.acronym, dataset.versions)">{{ dataset.acronym+'['+dataset.versions+']'}}</span>
                     </li>
                 </div>
@@ -91,9 +96,7 @@ const dataset_versions = ref("Unknown")
 const dataset = ref({acronym: "", versions: [], analysis_status: "", status: "", filename: "", url: "", title: "", paper_title: "", submitter: {name: "", email: ""}, authors: [], date_submitted: "", description: "", format: "", doi: "", tags: [], label_name: "", files: []})
 const version_parents = ref([])
 const version_children = ref([])
-const related_datasets = ref([])
-const origin_datasets = ref([])
-const same_origin_datasets = ref([])
+const version_siblings = ref([])
 const analysis = ref({analysis: {}})
 const edit_analysis_url = ref()
 const route = useRoute()
@@ -195,11 +198,9 @@ const get_dataset = (acronym, versions) => {
           dataset.value.tags = dataset.value.tags.filter(tag => tag !== "")
           analysis.value = response_dataset.data.dataset.analysis
           edit_analysis_url.value = response_dataset.data.edit_analysis_url
-          related_datasets.value = response_dataset.data.related_datasets
-          origin_datasets.value = response_dataset.data.origin_datasets
-          same_origin_datasets.value = response_dataset.data.same_origin_datasets
           version_children.value = response_dataset.data.version_children
           version_parents.value = response_dataset.data.version_parents
+          version_siblings.value = response_dataset.data.version_siblings
           comments.value = response_comments.data
       }))
       .catch(error => {
