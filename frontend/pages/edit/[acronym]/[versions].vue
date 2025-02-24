@@ -225,7 +225,7 @@
                 </template>
               </FileUpload>
               </div>
-      <footer class="flex justify-between">
+      <footer class="flex justify-between mb-4">
         <Button label="Save" icon="pi pi-save" class="mr-2" severity="success" @click="editDataset()"/>
         <Button label="Back" icon="pi pi-arrow-left" class="mr-2" severity="secondary" @click="navigateTo(`/detail/${encodeURIComponent(dataset_acronym)}/${encodeURIComponent(dataset_versions)}`)"/>
       </footer>
@@ -252,7 +252,7 @@ const dialogRef = inject("dialogRef")
 
 const dataset_acronym = ref("");
 const dataset_versions = ref("");
-const dataset = ref();
+const dataset = ref({filename: ""});
 const analysis_status_options = ref([
     {"status": "Requested"},
     {"status": "In Progress"},

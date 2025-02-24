@@ -9,14 +9,11 @@
                 + dataset.versions.join('.') 
                 }}
             <br/>
-            <Badge :value="'Analysis: ' + dataset.analysis_status" severity="info"/>
-            <div v-if="dataset.status == 'requested'">
-                <Badge value="Requested" severity="info"/>
-                <br />
-            </div>
+            <!-- TODO: Colors of badge -->
+            <Badge :value="'Analysis: ' + dataset.analysis_status" :severity="analysisStatusColor(dataset.analysis_status)" class="text-xl w-auto"/>
         </h1>
 
-        <h2 class="flex gap-2">
+        <h2 class="flex gap-2 pl-4">
             <Button v-if="dataset.filename" @click="downloadDataset(dataset.acronym, dataset.versions)" label="Download" icon="pi pi-download" severity="success" />
             <Button v-if="dataset.url" @click="getURL(dataset.url, true)" label="Open URL" icon="pi pi-link" severity="success" />
             <Button @click="editDataset(dataset.acronym, dataset.versions)" label="Edit Info" icon="pi pi-pencil" />
@@ -39,38 +36,33 @@
             </ul>
         </Fieldset>
         <Fieldset legend="Details" :toggleable="true">
-            <ul style="list-style: none" class="flex flex-col gap-2">
-                <li class="flex gap-2"> <b>Versions: </b> 
+            <ul style="list-style: none" class="list-none pl-1 space-y-1">
+                <li class="flex items-center gap-2"> <b>Versions: </b> 
                     <div class="flex gap-1" v-if="dataset.versions.length > 1 || dataset.versions[0] != ''">
-                        <Chip v-for="version in dataset.versions">{{ version }}</Chip>
+                        <Chip class="text-sm px-1 py-1" v-for="version in dataset.versions">{{ version }}</Chip>
                     </div>
                 </li>
                 <li><b>Dataset Title: </b> {{ dataset.title }}</li>
                 <li><b>Paper Title: </b> {{ dataset.paper_title }}</li>
-                <li class="flex gap-2"> <b>Authors: </b> 
+                <li class="flex items-center gap-2"> <b>Authors: </b> 
                     <div class="flex gap-1" v-if="dataset.authors.length > 1 || dataset.authors[0] != ''">
-                        <Chip v-for="author in dataset.authors">{{ author }}</Chip>
+                        <Chip class="text-sm px-1 py-1" v-for="author in dataset.authors">{{ author }}</Chip>
                     </div>
                 </li>
                 <li><b>Date Submitted: </b> <FormatedDate :datetime="dataset.date_submitted"/></li>
                 <li>
-                    <b>Submitter: </b>
-                    <ul>
-                        <li><b>Name: </b> {{ dataset.submitter.name }}</li>
-                        <li><b>Email: </b> {{ dataset.submitter.email}}</li>
-                    </ul>
+                    <b>Submitter: </b> {{ dataset.submitter.name }} <{{ dataset.submitter.email}}>
                 </li>
                 <li> <b>Description: </b> {{ dataset.description }} </li>
                 <li> <b>Format: </b> {{ dataset.format }} </li>
-                <li> <b>DOI: </b> <a :href="dataset.doi" target="_blank">{{ dataset.doi }}</a></li>
+                <li> <b>DOI: </b> <a class="font-medium text-blue-600 dark:text-blue-500 hover:underline" :href="dataset.doi" target="_blank">{{ dataset.doi }}</a></li>
                 <li> <b>Label Name: </b> {{ dataset.label_name }} </li>
-                <li class="flex gap-2"> <b>Tags: </b> 
-                    <!-- <div class="flex gap-2"><Chip v-for="tag in dataset.tags">{{ tag }}</Chip></div> -->
+                <li class="flex items-center gap-2"> <b>Tags: </b> 
                     <div class="flex gap-1" v-if="dataset.tags.length > 1 || dataset.tags[0] != ''">
-                        <Chip v-for="tag in dataset.tags">{{ tag }}</Chip>
+                        <Chip class="text-sm px-1 py-1" v-for="tag in dataset.tags">{{ tag }}</Chip>
                     </div>
                 </li>
-                <li> <b>Data URL: </b> <a :href="getURL(dataset.url)" about="_blank">{{ dataset.url }}</a></li>
+                <li> <b>Data URL: </b> <a class="font-medium text-blue-600 dark:text-blue-500 hover:underline" :href="getURL(dataset.url)" about="_blank">{{ dataset.url }}</a></li>
                 <li> <b>Data File: </b> {{ dataset.filename }} </li>
             </ul>
         </Fieldset>
@@ -95,13 +87,14 @@ import Analysis from '@/components/analysis.vue'
 const toast = useToast()
 const dataset_acronym = ref("Unknown")
 const dataset_versions = ref("Unknown")
-const dataset = ref()
-const version_parents = ref()
-const version_children = ref()
-const related_datasets = ref()
-const origin_datasets = ref()
-const same_origin_datasets = ref()
-const analysis = ref()
+// FIXME: better way for defaults
+const dataset = ref({acronym: "", versions: [], analysis_status: "", status: "", filename: "", url: "", title: "", paper_title: "", submitter: {name: "", email: ""}, authors: [], date_submitted: "", description: "", format: "", doi: "", tags: [], label_name: "", files: []})
+const version_parents = ref([])
+const version_children = ref([])
+const related_datasets = ref([])
+const origin_datasets = ref([])
+const same_origin_datasets = ref([])
+const analysis = ref({analysis: {}})
 const edit_analysis_url = ref()
 const route = useRoute()
 const comments = ref({})
@@ -112,6 +105,31 @@ const user = ref(null);
 const dialog = useDialog()
 
 const CreateCommentDialog = defineAsyncComponent(() => import('@/components/create_comment.vue'))
+
+onBeforeMount(() => { 
+    // dataset_title.value = "dataset_example_name"
+    dataset_acronym.value = decodeURIComponent(route.params.acronym)
+    dataset_versions.value = decodeURIComponent(route.params.versions)
+    get_dataset(dataset_acronym.value, dataset_versions.value)
+    axios.get('/api/users/me')
+        .then(response => {
+            console.log(response.data)
+            user.value = response.data
+        })
+        .catch()
+})
+
+const analysisStatusColor = (status) => {
+    if (status == "Requested") {
+        return "info"
+    } else if (status == "In Progress") {
+        return "warn"
+    } else if (status == "Completed") {
+        return "success"
+    } else {
+        return "danger"
+    }
+}
 
 const showDetail = (acronym, versions) => {
     if (versions == "") {
@@ -164,11 +182,12 @@ const get_dataset = (acronym, versions) => {
     console.log(acronym)
     console.log(versions)
     axios.all([
-        axios.get(`/api/datasets/${encodeURIComponent(acronym)}/${encodeURIComponent(versions)}`),
+        axios.get(`http://localhost:8000/api/datasets/${encodeURIComponent(acronym)}/${encodeURIComponent(versions)}`),
         // axios.get(`/api/comments/${encodeURIComponent(acronym)}/${encodeURIComponent(versions)}`),
-        axios.get(`/api/comments/${encodeURIComponent(acronym)}`),
+        axios.get(`http://localhost:8000/api/comments/${encodeURIComponent(acronym)}`),
     ])
       .then(axios.spread((response_dataset, response_comments) => {
+        console.log(response_dataset.data)
         //   dataset.value.analysis = {}
           dataset.value = response_dataset.data.dataset
           dataset.value.authors = dataset.value.authors.filter(author => author !== "")
@@ -246,18 +265,6 @@ const downloadDataset = (acronym, versions) => {
 }
 
 
-onMounted(() => { 
-    // dataset_title.value = "dataset_example_name"
-    dataset_acronym.value = decodeURIComponent(route.params.acronym)
-    dataset_versions.value = decodeURIComponent(route.params.versions)
-    get_dataset(dataset_acronym.value, dataset_versions.value)
-    axios.get('/api/users/me')
-        .then(response => {
-            console.log(response.data)
-            user.value = response.data
-        })
-        .catch()
-})
 </script>
 
 <style>
@@ -276,42 +283,6 @@ fieldset > legend {
 .info {
     border-bottom: 1px dotted #000;
     text-decoration: none;
-}
-
-.json-table {
-    border: 1px solid black;
-}
-
-.json-table td {
-    border: 1px solid black;
-}
-
-.styled-table {
-    border-collapse: collapse;
-    margin: 25px 0;
-    font-size: 0.9em;
-    font-family: sans-serif;
-    min-width: 400px;
-    box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
-}
-
-.styled-table thead tr {
-    /* background-color: #009879; */
-    color: #ffffff;
-    text-align: left;
-}
-
-.styled-table th,
-.styled-table td {
-    padding: 12px 15px;
-}
-
-.styled-table tbody tr {
-    border-bottom: 1px solid #dddddd;
-}
-
-.styled-table tbody tr:nth-of-type(even) {
-    background-color: #f3f3f3;
 }
 
 /* .styled-table tbody tr:last-of-type {

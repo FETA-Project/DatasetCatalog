@@ -13,10 +13,12 @@
                 <div>
                     <Button label="Delete" icon="pi pi-trash" severity="danger" @click="deleteData()" :disabled="!selectedData || !selectedData.length" />
                 </div>
-                <span class="p-input-icon-left">
-                    <i class="pi pi-search" />
+                <IconField>
+                    <InputIcon>
+                        <i class="pi pi-search" />
+                    </InputIcon>
                     <InputText v-model="filters['global'].value" placeholder="Search..." />
-                </span>
+                </IconField>
             </div>
         </template>
         <Column selectionMode="multiple" headerStyle="width: 3rem"></Column>
