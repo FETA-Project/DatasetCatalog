@@ -11,6 +11,7 @@ export default defineNuxtConfig({
       '@nuxtjs/tailwindcss',
       '@primevue/nuxt-module',
       '@nuxtjs/google-fonts',
+      '@nuxtjs/mdc',
   ],
 
   css: [
