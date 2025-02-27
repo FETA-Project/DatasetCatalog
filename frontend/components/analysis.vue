@@ -13,8 +13,7 @@
                         <a class="font-medium text-orange-500 dark:text-orange-600 hover:underline cursor-pointer" v-if="typeof value =='string' && value.endsWith('.ipynb')" :href="jupyterURL(acronym, versions, value)" target="_blank">{{ value }}</a>
                         <table v-else-if="check_if_json(value)" class="styled-table">
                             <tbody>
-                                <!-- <tr v-for="(field, header) in JSON.parse(value)"> -->
-                                <tr v-for="(field, header) in JSON.parse(value)">
+                                <tr v-for="(field, header) in Jsonic(value)">
                                     <td class="p-4">{{ header }}</td>
                                     <td class="p-4">{{ field }}</td>
                                 </tr>
@@ -22,7 +21,7 @@
                         </table>
                         <span v-else-if="typeof value != 'object'" style="white-space: pre">
                             <span v-if="files.includes(value)" class="font-medium text-green-500 dark:text-green-600 hover:underline cursor-pointer" @click="downloadAnalysisFile(acronym, versions, value)">{{ value }}</span>
-                            <span v-else>{{ value }}</span>
+                              <MDC v-else class="prose dark:prose-invert" :value="value"/>
                         </span>
                     </li>
                 </template>
@@ -38,6 +37,7 @@
 import { defineProps } from 'vue'
 import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
+import { Jsonic } from 'jsonic';
 
 const toast = useToast()
 
@@ -98,10 +98,6 @@ const downloadAnalysisFile = (acronym, versions, filename) => {
 
 const check_if_json = (string) => {
 
-    // if (typeof string == "object") {
-        // return false
-    // }
-
     if (typeof string != "string") {
         return false
     }
@@ -111,7 +107,7 @@ const check_if_json = (string) => {
     }
 
     try {
-        JSON.parse(string)
+        Jsonic(string)
         return true
     } catch (e) {
         return false

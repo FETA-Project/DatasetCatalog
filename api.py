@@ -310,7 +310,7 @@ async def dataset_edit(
         await dataset.save()
         dataset.update_analysis(old_path=old_path)
 
-        if dataset.filename != dataset.get_name():
+        if dataset.filename is not None and dataset.filename != dataset.get_name():
             _new_filename = f"{dataset.get_name()}{pathlib.Path(dataset.filename).suffix}"
             s3.client.copy_object(
                 Bucket=config.S3_BUCKET,
