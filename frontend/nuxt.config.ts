@@ -1,11 +1,18 @@
 import Lara from '@primevue/themes/lara';
 
 export default defineNuxtConfig({
-//   runtimeConfig: {
-//       public: {
-//         apiBaseUrl: process.env.API_BASE_URL || 'http://localhost:8000',
-//       },
-//   },
+app:{
+    head: {
+      title: "Katoda - Dataset Catalog",
+      link: [
+          {
+              rel: 'icon',
+              type: 'image/svg+xml',
+              href: '/favicon.svg'
+          }
+      ]
+    },
+},
   ssr: true,
   modules: [
       '@nuxtjs/tailwindcss',

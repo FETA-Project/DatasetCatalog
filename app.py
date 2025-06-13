@@ -7,16 +7,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from api import api
-from auth import auth
 from config import config
 from database import init_db
 from models import User
 from s3_client import s3
 
+VERSION = "0.0.6"
+
 app = FastAPI(
     openapi="3.0.2",
     openapi_url="/docs/openapi.json",
-    docs_url='/docs',
+    docs_url="/docs",
 )
 
 origins = [
@@ -32,36 +33,56 @@ app.add_middleware(
 )
 
 app.include_router(api)
-app.include_router(auth)
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--no-s3', action='store_true', help='for testing')
+    parser.add_argument(
+        "--dev", action="store_true", help="for testing (running as admin)"
+    )
+    parser.add_argument(
+        "--dev-user", action="store_true", help="for testing (running as test user)"
+    )
     return parser.parse_args()
+
 
 @app.on_event("startup")
 async def start_db():
     await init_db()
 
-    admin = await User.find(User.is_admin == True).first_or_none()
-    if admin is None:
-        print("No admin user found, creating default (admin:admin)")
-        admin = User(
-            email="admin",
-            name="admin",
-            surname="admin",
-            created_at=datetime.utcnow(),
-            is_admin=True,
-        )
-        admin.set_password('admin')
-        await admin.save()
+    if config.DEV:
+        print("Using dev config, setting up admin and test users")
+        _admin = await User.find(User.email == "admin").first_or_none()
+        if _admin is None:
+            admin = User(
+                email="admin",
+                name="admin",
+                surname="admin",
+                created_at=datetime.utcnow(),
+                is_admin=True,
+            )
+            await admin.save()
 
+        _test = await User.find(User.email == "test").first_or_none()
+        if _test is None:
+            test_user = User(
+                email="test",
+                name="",
+                surname="",
+                created_at=datetime.utcnow(),
+                is_admin=False,
+            )
+            await test_user.save()
 
     # test_ndvm()
+
 
 app.mount("/", StaticFiles(directory=config.STATIC_DIR, html=True))
 
 if __name__ == "__main__":
-    s3.prepare_s3(parse_args().no_s3)
+    args = parse_args()
+    config.DEV = args.dev or args.dev_user
+    config.DEV_USER = "admin" if args.dev else "test"
+    s3.prepare_s3(no_s3=config.DEV)
     uvicorn.run(app, host="0.0.0.0", port=8000)
     s3.cleanup_s3()

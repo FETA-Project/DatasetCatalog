@@ -1,13 +1,17 @@
+import asyncio
 from functools import wraps
+import sys
+import tempfile
+import threading
 from typing import Any
 
 from fastapi.responses import JSONResponse
-from passlib.context import CryptContext
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
-def disabled(status_code: int = 405, content: str = 'Sorry, function is not enabled at this time.'):
+def disabled(
+    status_code: int = 405,
+    content: str = "Sorry, function is not enabled at this time.",
+):
     def decorator(func):
         @wraps(func)
         def wrapper(*args: Any, **kwargs: Any) -> JSONResponse:
@@ -18,9 +22,24 @@ def disabled(status_code: int = 405, content: str = 'Sorry, function is not enab
     return decorator
 
 
-def hash_password(password: str):
-    return pwd_context.hash(password)
+class ProgressPercentage(object):
+    def __init__(self, filename: str, size: float):
+        self._filename = filename
+        self._size = size
+        self._seen_so_far = 0
+        self._lock = threading.Lock()
 
+    def __call__(self, bytes_amount):
+        # To simplify, assume this is hooked up to a single filename
+        with self._lock:
+            self._seen_so_far += bytes_amount
+            percentage = (self._seen_so_far / self._size) * 100
+            sys.stdout.write(
+                "\r%s %s / %s  (%.2f%%)"
+                % (self._filename, self._seen_so_far, self._size, percentage)
+            )
+            sys.stdout.flush()
 
-def verify_password(password: str, hashed_password: str):
-    return pwd_context.verify(password, hashed_password)
+    def percentage(self):
+        with self._lock:
+            return (self._seen_so_far / self._size) * 100

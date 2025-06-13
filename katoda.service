@@ -1,0 +1,14 @@
+# /usr/lib/systemd/system/katoda.service
+[Unit]
+Description=Start katoda as a service
+
+After=network-online.target
+
+[Service]
+Type=simple
+Restart=on-failure
+
+ExecStart=/opt/katoda/venv/bin/python /opt/katoda/app.py
+
+[Install]
+WantedBy=multi-user.target
