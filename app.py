@@ -12,7 +12,7 @@ from database import init_db
 from models import User
 from s3_client import s3
 
-VERSION = "0.0.6"
+VERSION = "0.0.7"
 
 app = FastAPI(
     openapi="3.0.2",

@@ -23,6 +23,8 @@ async def _require_user(request: Request, require_admin: bool):
         return _user
 
     user_id = request.headers.get("X-User-ID").encode("latin").decode("utf-8")
+    if user_id == "(null)":
+        user_id = request.headers.get("X-User-Email").encode("latin").decode("utf-8")
     user_name = request.headers.get("X-User-Name", "").encode("latin").decode("utf-8")
     user_sn = request.headers.get("X-User-Surname", "").encode("latin").decode("utf-8")
 

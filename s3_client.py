@@ -16,7 +16,8 @@ class S3Client:
 
     def prepare_s3(self, no_s3: bool = False) -> None:
         print("Preparing the S3 client.")
-
+        if no_s3:
+            return
 
         self.client = boto3.client(
             service_name="s3",

@@ -17,6 +17,7 @@ from fastapi import (
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse
 from pymongo.errors import DuplicateKeyError
+from pathlib import Path
 
 from models import (
     AnalysisStatus,
@@ -43,6 +44,12 @@ api = APIRouter(prefix="/api")
 async def git_sync():
     git_repo = git.Repo(config.ANALYSIS_DIR)
     git_repo.remotes.origin.pull()
+
+
+@api.get("/howto")
+async def howto():
+    howto_path = Path(config.ANALYSIS_DIR, "HOWTO.md")
+    return FileResponse(howto_path)
 
 
 # === USERS ===
@@ -362,7 +369,7 @@ async def dataset_edit(
     if dataset is None:
         Dataset.not_found(curr_acronym)
 
-    if not user.is_admin and user.email != dataset.submitter.email:
+    if not user.is_admin and user.email != dataset.submitter["email"]:
         raise HTTPException(
             status_code=401,
             detail="You are not authorized to edit this dataset.",

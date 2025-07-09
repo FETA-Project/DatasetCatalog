@@ -75,6 +75,14 @@ const items = ref([
       title: "Collection Tools",
     },
   },
+  {
+    label: "How to Use",
+    icon: "pi pi-fw pi-info-circle",
+    command: () => navigateTo("/howto"),
+    meta: {
+      title: "How to Use",
+    },
+  },
 ]);
 
 const dialog = useDialog();
