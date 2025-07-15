@@ -1,0 +1,51 @@
+stages:
+  - build
+
+.build_install_ol9:
+  before_script: dnf install -y make rpm-build python3.11
+
+.build_template:
+  variables:
+    RPMDIR: "RPMBUILD/RPMS/noarch"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      when: on_success
+
+.build_devel_template:
+  variables:
+    RPMDIR: "RPMBUILD/RPMS/noarch"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "devel"
+      when: on_success
+      changes:
+        - ./*.py
+        - katoda.spec
+        - katoda.service
+        - requirements.txt
+        - Makefile
+
+########################################################################################
+
+build-ol9:
+  stage: build
+  image: oraclelinux:9
+  extends:
+    - .build_template
+    - .build_install_ol9
+  script:
+    - VERSION=$(grep -E '^VERSION =' app.py | cut -d'"' -f2)
+    - make rpm
+    - cd ${RPMDIR}
+    - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file katoda-${VERSION}-1.noarch.rpm "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/DatasetCatalog/${VERSION}/katoda-${VERSION}.rpm"'
+
+build-devel-ol9:
+  stage: build
+  image: oraclelinux:9
+  extends:
+    - .build_devel_template
+    - .build_install_ol9
+  script:
+    - sed -i 's/^VERSION = .*/VERSION = "devel"/' app.py
+    - make rpm
+    - cd ${RPMDIR}
+    - 'curl --header "JOB-TOKEN: $CI_JOB_TOKEN" --upload-file katoda-devel-1.noarch.rpm "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/generic/DatasetCatalog/devel/katoda-devel.rpm"'

@@ -2,7 +2,7 @@
   <div id="container" class="card flex justify-center">
     <div class="flex flex-col gap-4 container">
       <Toast position="bottom-right" />
-      <div v-if="!edit" id="author" :class="{ error: authorError }" class="flex flex-col gap-2">
+      <!-- <div v-if="!edit" id="author" :class="{ error: authorError }" class="flex flex-col gap-2">
         <label for="author">
             <i class="pi pi-info-circle" v-tooltip.right="'Name of the commentor.'" />
             Name
@@ -17,11 +17,14 @@
           <i class="pi pi-exclamation-circle" style="font-size: 0.8rem" />
           Name is required.
         </small>
-      </div>
-     <div id="text" class="flex flex-col gap-2">
+      </div> -->
+      <div id="text" class="flex flex-col gap-2">
         <label for="Text">
-            <i class="pi pi-info-circle" v-tooltip.right="'Text of the comment.'" />
-            Text
+          <i
+            class="pi pi-info-circle"
+            v-tooltip.right="'Text of the comment.'"
+          />
+          Text
         </label>
         <TextArea
           id="text"
@@ -38,11 +41,11 @@
           Text is required.
         </small>
       </div>
-        <Button
-          :label="edit ? 'Edit Comment' : 'Add Comment'"
-          @click="createComment"
-        />
-     <footer><small>* required field</small></footer>
+      <Button
+        :label="edit ? 'Edit Comment' : 'Add Comment'"
+        @click="createComment"
+      />
+      <footer><small>* required field</small></footer>
     </div>
   </div>
 </template>
@@ -57,71 +60,75 @@ const router = useRouter();
 
 const toast = useToast();
 
-const dialogRef = inject("dialogRef")
+const dialogRef = inject("dialogRef");
 
 const text = ref("");
 const textError = ref(false);
-const author = ref("");
-const authorError = ref(false);
+// const author = ref("");
+// const authorError = ref(false);
 const belongs_to = ref("");
 const edit = ref(false);
 const comment_id = ref("");
 
 onMounted(() => {
-    belongs_to.value = dialogRef.value.data.belongs_to;
-    edit.value = dialogRef.value.data.edit;
-    text.value = dialogRef.value.data.text;
-    comment_id.value = dialogRef.value.data.comment_id;
-})
+  belongs_to.value = dialogRef.value.data.belongs_to;
+  edit.value = dialogRef.value.data.edit;
+  text.value = dialogRef.value.data.text;
+  comment_id.value = dialogRef.value.data.comment_id;
+});
 
 async function createComment() {
   const formData = new FormData();
   formData.append("text", text.value);
   if (text.value.length == 0) {
-    textError.value = true
+    textError.value = true;
     toast.add({
       severity: "error",
       summary: "Request Error",
-      detail: 'Text is required.',
+      detail: "Text is required.",
       life: 3000,
     });
-    return
+    return;
   }
 
-  if (!edit.value){
-      formData.append("author", author.value)
-      formData.append("belongs_to", belongs_to.value)
-      if (author.value.length == 0) {
-        authorError.value = true
-        toast.add({
-          severity: "error",
-          summary: "Request Error",
-          detail: 'Name is required.',
-          life: 3000,
-        });
-        return
-      }
-      if (comment_id.value != null) {
-          formData.append("parent_id", comment_id.value)
-      }
+  if (!edit.value) {
+    //   formData.append("author", author.value)
+    formData.append("belongs_to", belongs_to.value);
+    //   if (author.value.length == 0) {
+    //     authorError.value = true
+    //     toast.add({
+    //       severity: "error",
+    //       summary: "Request Error",
+    //       detail: 'Name is required.',
+    //       life: 3000,
+    //     });
+    //     return
+    //   }
+    if (comment_id.value != null) {
+      formData.append("parent_id", comment_id.value);
+    }
   }
 
-   await axios
-    .post(`/api/comments${edit.value ? `/${comment_id.value}` : ""}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data', // Make sure to set the correct content type
-      },
-    })
+  await axios
+    .post(
+      `/api/comments${edit.value ? `/${comment_id.value}` : ""}`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data", // Make sure to set the correct content type
+        },
+      }
+    )
     .then((response) => {
       toast.add({
         severity: "success",
         summary: edit ? "Comment Edited" : "Comment Added",
         life: 1000,
       });
-      dialogRef.value.close(belongs_to.value)
+      dialogRef.value.close(belongs_to.value);
     })
     .catch((error) => {
-      console.log(error)
+      console.log(error);
       toast.add({
         severity: "error",
         summary: edit ? "Comment Edit Error" : "Comment Add Error",
@@ -131,22 +138,20 @@ async function createComment() {
     });
 }
 
-watch(author, (value) => {
-    if(!edit.value){
-      authorError.value = value.length === 0
-    }
-})
+// watch(author, (value) => {
+//     if(!edit.value){
+//       authorError.value = value.length === 0
+//     }
+// })
 
 watch(text, (value) => {
-  textError.value = value.length === 0
-})
-
+  textError.value = value.length === 0;
+});
 </script>
 
 <style scoped>
-
 .container {
-    width: 30em;
+  width: 30em;
 }
 .error {
   color: red;

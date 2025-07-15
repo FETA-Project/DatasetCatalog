@@ -3,25 +3,19 @@ from typing import Optional
 from pydantic import BaseSettings
 
 
-class Config(BaseSettings):
-    STATIC_DIR = "frontend/.output/public"
+class KatodaConfig(BaseSettings):
+    # STATIC_DIR = "frontend/.output/public"
+    STATIC_DIR = "static"
 
     DATABASE_URL: Optional[str] = "localhost:27017"
     DATABASE_USER: Optional[str]
     DATABASE_PASS: Optional[str]
-    DATABASE_NAME: Optional[str] = 'catalogDB'
+    DATABASE_NAME: Optional[str] = "katoda"
 
     # DATABASE_URI: str = f"mongodb://{DATABASE_USER}:{DATABASE_PASS}@{DATABASE_URL}"
     DATABASE_URI: Optional[str] = f"mongodb://{DATABASE_URL}"
 
-    JWT_PRIVATE_KEY: Optional[str] = ""
-    JWT_PUBLIC_KEY: Optional[str] = ""
-
-    REFRESH_TOKEN_EXPIRES_IN: Optional[int] = 3600*24*7
-    ACCESS_TOKEN_EXPIRES_IN: Optional[int] = 3600
-    JWT_ALGORITHM: Optional[str] = "RS256"
-
-    CLIENT_ORIGIN: Optional[str] = "http://localhost:3000"
+    CLIENT_ORIGIN: Optional[str] = "http://localhost:8000"
 
     # ANALYSIS_DIR: Optional[str] = "./dataset_analysis"
     ANALYSIS_DIR: Optional[str] = "./katoda-test"
@@ -36,8 +30,12 @@ class Config(BaseSettings):
     S3_USER: Optional[str] = "katoda"
     S3_BUCKET: Optional[str] = "katoda"
 
+    DEV: Optional[bool] = False
+    DEV_USER: Optional[str] = "test"
+
     class Config:
-        env_file = './.env'
+        # env_file = "./.env"
+        env_file = "/etc/katoda/config.env", ".env"
 
 
-config = Config()
+config = KatodaConfig()

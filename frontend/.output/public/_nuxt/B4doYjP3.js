@@ -1,0 +1,1 @@
+import{c,o,t as s}from"./DU3s_J-k.js";const p={__name:"date",props:{datetime:{type:String,required:!0}},setup(r){const a=t=>{const e=new Date(t);try{return e.toISOString().replace("T"," ").slice(0,-5)}catch(n){return n}};return(t,e)=>(o(),c("span",null,s(a(r.datetime)),1))}};export{p as _};
