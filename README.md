@@ -1,7 +1,7 @@
 # Katoda - Dataset Catalog
 Dataset Catalog is web based service with list of datasets and their quality report. 
 
-This repository contains source code about dataset catalog system. This system is publicly available [here](https://dataset-catalog.liberouter.org/) where you casn see dataset quality reports or ask for dataset analysis.  
+This repository contains source code about dataset catalog system. This system is publicly available [here](https://dataset-catalog.liberouter.org/) where you can see dataset quality reports or ask for dataset analysis.  
 
 ## More information:
 
